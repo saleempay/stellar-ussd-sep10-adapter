@@ -14,8 +14,7 @@ network, with a session measured in seconds and a strict character budget.
 Because every anchor operation defined by SEP-6 and SEP-24 requires a SEP-10
 token, the entire anchor surface of Stellar is unreachable from these devices.
 
-Roughly 280 million feature-phone SIMs across MENA and South Asia have no
-smartphone and no mobile data.
+Across MENA and South Asia there are roughly 500 million addressable SIMs, including about 280 million adults who are unbanked and offline.
 
 ## The approach
 
@@ -37,9 +36,7 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-Specification stage. Implementation begins on award of Stellar Community Fund
-funding, targeting a first public release with a working USSD authentication
-flow against Stellar testnet.
+Specification stage. Implementation begins 10 August 2026, targeting a first public release with a working USSD authentication flow against Stellar testnet
 
 ## Licence
 
