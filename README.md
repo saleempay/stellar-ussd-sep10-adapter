@@ -14,8 +14,8 @@ network, with a session measured in seconds and a strict character budget.
 Because every anchor operation defined by SEP-6 and SEP-24 requires a SEP-10
 token, the entire anchor surface of Stellar is unreachable from these devices.
 
-Across MENA and South Asia there are roughly 500 million addressable SIMs, 
-including about 280 million adults who are unbanked and offline.
+Across MENA and South Asia there are roughly 496 million adults in the markets 
+this serves, including about 231 million with no bank account and no smartphone.
 
 ## The approach
 
