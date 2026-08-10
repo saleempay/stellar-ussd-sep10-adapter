@@ -1,0 +1,112 @@
+import {
+  Asset,
+  BASE_FEE,
+  Operation,
+  TransactionBuilder,
+} from '@stellar/stellar-sdk';
+
+import { decodeSubmissionError } from '../errors.js';
+import type { Signer } from '../signer/types.js';
+import type { HorizonLike, SubmitResult } from './horizon.js';
+
+/** Inputs for {@link createSponsoredAccount}. */
+export interface CreateSponsoredAccountParams {
+  horizon: HorizonLike;
+  networkPassphrase: string;
+  /** Operator account that pays the fee and sponsors all reserves. */
+  sponsorPublicKey: string;
+  /** Public key of the account to create (from `Signer.createAccountKey`). */
+  newAccountId: string;
+  /**
+   * Signs for BOTH the sponsor and the new account. A single `Signer`
+   * instance may hold both (reference setup), or wrap two backends.
+   */
+  signer: Signer;
+  /**
+   * Asset to open a trustline to inside the sponsorship sandwich, so the
+   * account is usable for anchor flows the moment it exists. Omit to create
+   * the account without a trustline.
+   */
+  asset?: { code: string; issuer: string };
+  /** Transaction timebounds, seconds. Default 120. */
+  timeoutSeconds?: number;
+}
+
+/**
+ * Create a Stellar account whose reserves are sponsored by the operator
+ * account, optionally establishing a sponsored trustline in the same
+ * transaction.
+ *
+ * The transaction is the classic sponsorship sandwich:
+ *
+ * 1. `beginSponsoringFutureReserves` (source: sponsor)
+ * 2. `createAccount` with `startingBalance: "0"` — possible only because the
+ *    base reserves are sponsored
+ * 3. `changeTrust` (source: **new account**) — the trustline subentry is
+ *    created inside the sandwich, so its reserve is sponsor-paid
+ * 4. `endSponsoringFutureReserves` (source: new account)
+ *
+ * Both the sponsor (transaction source) and the new account (source of ops
+ * 3–4) must sign; both signatures are obtained through the {@link Signer}
+ * seam, so no key material is handled here.
+ *
+ * @returns The submission result (transaction hash and ledger).
+ * @throws TransactionFailedError (typed, with Horizon result codes) on rejection.
+ */
+export async function createSponsoredAccount(
+  params: CreateSponsoredAccountParams,
+): Promise<SubmitResult> {
+  const {
+    horizon,
+    networkPassphrase,
+    sponsorPublicKey,
+    newAccountId,
+    signer,
+    asset,
+    timeoutSeconds = 120,
+  } = params;
+
+  const sponsorAccount = await horizon.loadAccount(sponsorPublicKey);
+
+  const builder = new TransactionBuilder(sponsorAccount, {
+    fee: BASE_FEE,
+    networkPassphrase,
+  })
+    .addOperation(
+      Operation.beginSponsoringFutureReserves({ sponsoredId: newAccountId }),
+    )
+    .addOperation(
+      Operation.createAccount({
+        destination: newAccountId,
+        startingBalance: '0',
+      }),
+    );
+
+  if (asset) {
+    builder.addOperation(
+      Operation.changeTrust({
+        asset: new Asset(asset.code, asset.issuer),
+        source: newAccountId,
+      }),
+    );
+  }
+
+  const tx = builder
+    .addOperation(Operation.endSponsoringFutureReserves({ source: newAccountId }))
+    .setTimeout(timeoutSeconds)
+    .build();
+
+  let xdr = tx.toXDR();
+  xdr = await signer.signTransaction(xdr, { networkPassphrase, accountId: sponsorPublicKey });
+  xdr = await signer.signTransaction(xdr, { networkPassphrase, accountId: newAccountId });
+
+  const signed = TransactionBuilder.fromXDR(xdr, networkPassphrase);
+  try {
+    return await horizon.submitTransaction(signed as Parameters<HorizonLike['submitTransaction']>[0]);
+  } catch (err) {
+    throw decodeSubmissionError(
+      err,
+      asset ? { accountId: newAccountId, assetCode: asset.code, assetIssuer: asset.issuer } : undefined,
+    );
+  }
+}
