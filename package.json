@@ -1,0 +1,33 @@
+{
+  "name": "stellar-ussd-sep10-adapter",
+  "version": "0.1.0",
+  "description": "SEP-10 authentication adapter for USSD clients: MSISDN-to-account resolution, sponsored account creation, and a pluggable signer interface for Stellar anchor flows on feature phones.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "RUN_TESTNET_E2E=1 vitest run test/integration --no-file-parallelism"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saleempay/stellar-ussd-sep10-adapter"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
