@@ -1,5 +1,17 @@
 # Evidence — Week 1 (Sprint 1, Instaward Application 1)
 
+## What this file proves, in plain language
+
+This file is the proof that Week 1's software really ran on the Stellar
+test network on 10 August 2026: it created a Stellar account from a phone
+number, with the account's minimum balances paid by a sponsor. Each claim
+comes with a transaction link you can click (stellar.expert) and the
+expected values to compare against, plus a copy of the underlying ledger
+record so the proof survives even if the test network is later reset. A
+non-technical reader needs only the links and the tables; the JSON blocks
+exist so a technical reviewer can check every figure against the ledger.
+For a click-through checklist version, see `docs/verification-week1.md`.
+
 Every on-chain claim below was executed against **Stellar testnet** on
 **10 August 2026** and is backed by a real transaction hash. Raw Horizon
 JSON excerpts are embedded alongside each hash so the evidence remains
@@ -196,6 +208,61 @@ HTTP 400 on a parameterless GET is the expected liveness signature: SEP-10
 requires an `account` query parameter, so a 400 means the endpoint is
 deployed and parsing requests. **Nothing was built against this endpoint in
 Week 1** — this observation only de-risks the Week 2 dependency.
+
+## Reproduction run — fresh public clone, documented steps only (10 Aug 2026)
+
+The full flow was reproduced the same day from a **fresh clone of the
+public repository, following only the documented quickstart** (no
+knowledge outside the repo): `npm install` → `npm test` (49 passed) →
+`node scripts/setup-sponsor.mjs` → `.env` per the printed lines →
+`npm run test:e2e` (passed). This is independent confirmation that a third
+party can run the flow without contacting Saleem. Fresh throwaway sponsor
+`GAE5TCKWC6PSDJ2A6W2O4J5HU2ABJLEDWR5JTLW3VNKPXQ5AHS6FSMLP`, created
+account `GBXMFTMYVIY4IXE5NFPMQTZ5QHCZHL5OZTAUTMWHQCHSXTPRNGAUFIZF`,
+fictional MSISDN `+99953713825`.
+
+- Reproduction creation tx:
+  `42ad3dc030b834689608be9a3782d527037c794b58d3d900b619f4470c4601be`
+  — <https://stellar.expert/explorer/testnet/tx/42ad3dc030b834689608be9a3782d527037c794b58d3d900b619f4470c4601be>
+- Reproduction friendbot funding tx:
+  `2421144573606e6db2713b0eb6bdb58771d01d24d8f4018ffac1b74f15a61760`
+  — <https://stellar.expert/explorer/testnet/tx/2421144573606e6db2713b0eb6bdb58771d01d24d8f4018ffac1b74f15a61760>
+
+Raw Horizon excerpts (retrieved 2026-08-10T14:56Z):
+
+```json
+{ "hash": "42ad3dc030b834689608be9a3782d527037c794b58d3d900b619f4470c4601be",
+  "ledger": 4070565, "successful": true,
+  "source_account": "GAE5TCKWC6PSDJ2A6W2O4J5HU2ABJLEDWR5JTLW3VNKPXQ5AHS6FSMLP",
+  "fee_charged": "400", "operation_count": 4, "created_at": "2026-08-10T14:55:51Z" }
+```
+
+```json
+{ "hash": "2421144573606e6db2713b0eb6bdb58771d01d24d8f4018ffac1b74f15a61760",
+  "ledger": 4070557, "successful": true, "operation_count": 1,
+  "fee_charged": "100", "created_at": "2026-08-10T14:55:11Z" }
+```
+
+```json
+{ "id": "GBXMFTMYVIY4IXE5NFPMQTZ5QHCZHL5OZTAUTMWHQCHSXTPRNGAUFIZF",
+  "num_sponsored": 3, "subentry_count": 1,
+  "sponsor": "GAE5TCKWC6PSDJ2A6W2O4J5HU2ABJLEDWR5JTLW3VNKPXQ5AHS6FSMLP",
+  "balances": [ { "asset": "SRT", "balance": "0.0000000" },
+                { "asset": "native", "balance": "0.0000000" } ] }
+```
+
+The measured figures matched the original run exactly: base reserve
+0.5 XLM (ledger 4070565), `num_sponsored: 3` (1.5 XLM sponsored),
+sponsor balance moved only by the 400-stroop fee (10000.0000000 →
+9999.9999600).
+
+Re-verification of the **original** run's evidence was performed at
+`2026-08-10T14:56:23Z`: both original transactions still return
+`successful: true` from Horizon, both stellar.expert links resolve
+(HTTP 200), and fresh Horizon reads of the original sponsor
+(`num_sponsoring: 3`, balance `9999.9999600`) and original created account
+(`num_sponsored: 3`, SRT trustline, 0 XLM) show **no drift** from the
+figures recorded above.
 
 ## How to reproduce
 
