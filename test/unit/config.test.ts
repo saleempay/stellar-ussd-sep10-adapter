@@ -1,3 +1,4 @@
+import { Keypair } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError, TESTNET_DEFAULTS, loadConfig } from '../../src/index.js';
@@ -42,8 +43,8 @@ describe('loadConfig', () => {
   });
 
   it('never accepts a secret key where a public key belongs', () => {
-    expect(() =>
-      loadConfig({ ...VALID, SPONSOR_PUBLIC_KEY: 'SA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ' }),
-    ).toThrow(ConfigError);
+    // Generated at runtime so no secret-key-shaped literal exists in the repo.
+    const secret = Keypair.random().secret();
+    expect(() => loadConfig({ ...VALID, SPONSOR_PUBLIC_KEY: secret })).toThrow(ConfigError);
   });
 });
