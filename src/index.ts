@@ -30,17 +30,24 @@ export {
   type AssetRef,
   type AddSponsoredTrustlineParams,
 } from './accounts/trustline.js';
-export type { HorizonLike, HorizonAccount, SubmitResult } from './accounts/horizon.js';
+export {
+  loadAccountOrThrow,
+  type HorizonLike,
+  type HorizonAccount,
+  type SubmitResult,
+} from './accounts/horizon.js';
 
 export { loadConfig, TESTNET_DEFAULTS, type AdapterConfig } from './config/index.js';
 export {
   AdapterError,
   InvalidMsisdnError,
   TrustlineMissingError,
+  AccountNotFoundError,
   SignerUnavailableError,
   TransactionFailedError,
   ConfigError,
   decodeSubmissionError,
+  isHorizonNotFound,
 } from './errors.js';
 
 /** Dependencies for {@link resolveOrCreateAccount}. */

@@ -7,7 +7,7 @@ import {
 
 import { decodeSubmissionError } from '../errors.js';
 import type { Signer } from '../signer/types.js';
-import type { HorizonLike, SubmitResult } from './horizon.js';
+import { loadAccountOrThrow, type HorizonLike, type SubmitResult } from './horizon.js';
 
 /** Inputs for {@link createSponsoredAccount}. */
 export interface CreateSponsoredAccountParams {
@@ -66,7 +66,7 @@ export async function createSponsoredAccount(
     timeoutSeconds = 120,
   } = params;
 
-  const sponsorAccount = await horizon.loadAccount(sponsorPublicKey);
+  const sponsorAccount = await loadAccountOrThrow(horizon, sponsorPublicKey);
 
   const builder = new TransactionBuilder(sponsorAccount, {
     fee: BASE_FEE,

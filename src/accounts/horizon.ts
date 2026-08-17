@@ -9,6 +9,8 @@
 
 import type { Transaction } from '@stellar/stellar-sdk';
 
+import { AccountNotFoundError, isHorizonNotFound } from '../errors.js';
+
 /** Account state the adapter reads: sequence (for building) and balances. */
 export interface HorizonAccount {
   accountId(): string;
@@ -32,4 +34,24 @@ export interface SubmitResult {
 export interface HorizonLike {
   loadAccount(accountId: string): Promise<HorizonAccount>;
   submitTransaction(tx: Transaction): Promise<SubmitResult>;
+}
+
+/**
+ * Load an account, translating a Horizon 404 into a typed
+ * {@link AccountNotFoundError} that names the missing account.
+ *
+ * Every `loadAccount` call in the adapter goes through this helper so a
+ * missing account never reaches a caller as a raw SDK error. Any other
+ * failure (network, 5xx, rate limit) is rethrown unchanged.
+ */
+export async function loadAccountOrThrow(
+  horizon: HorizonLike,
+  accountId: string,
+): Promise<HorizonAccount> {
+  try {
+    return await horizon.loadAccount(accountId);
+  } catch (err) {
+    if (isHorizonNotFound(err)) throw new AccountNotFoundError(accountId);
+    throw err;
+  }
 }

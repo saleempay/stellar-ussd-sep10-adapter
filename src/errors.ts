@@ -71,6 +71,25 @@ export class TrustlineMissingError extends AdapterError {
   }
 }
 
+/**
+ * The requested account does not exist on the network.
+ *
+ * Thrown whenever the adapter loads an account from Horizon and Horizon
+ * answers 404. This covers both the user account (for example a trustline
+ * preflight on an MSISDN whose account was never created) and the sponsor
+ * account (a misconfigured `SPONSOR_PUBLIC_KEY`); `accountId` tells the
+ * caller which one was missing. Other Horizon failures are not translated
+ * to this error and keep their existing handling.
+ */
+export class AccountNotFoundError extends AdapterError {
+  readonly accountId: string;
+
+  constructor(accountId: string) {
+    super('ACCOUNT_NOT_FOUND', `Account ${accountId} does not exist on the network.`);
+    this.accountId = accountId;
+  }
+}
+
 /** The configured {@link Signer} cannot sign for the requested account. */
 export class SignerUnavailableError extends AdapterError {
   readonly accountId: string;
@@ -154,6 +173,18 @@ export function decodeSubmissionError(
   }
   const message = err instanceof Error ? err.message : String(err);
   return new TransactionFailedError(`Transaction submission failed: ${message}`);
+}
+
+/**
+ * True if the error thrown by a Horizon client call is an HTTP 404 (the
+ * account, transaction, or ledger does not exist). Checks the SDK's
+ * `NotFoundError` shape (`response.status`) and a plain `status` field so
+ * both `Horizon.Server` and lightweight adopter clients are recognized.
+ */
+export function isHorizonNotFound(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const e = err as { response?: { status?: number }; status?: number; name?: string };
+  return e.response?.status === 404 || e.status === 404 || e.name === 'NotFoundError';
 }
 
 /** Pull Horizon `result_codes` out of an SDK submission error, if present. */

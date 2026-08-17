@@ -7,7 +7,7 @@ import {
 
 import { TrustlineMissingError, decodeSubmissionError } from '../errors.js';
 import type { Signer } from '../signer/types.js';
-import type { HorizonAccount, HorizonLike, SubmitResult } from './horizon.js';
+import { loadAccountOrThrow, type HorizonAccount, type HorizonLike, type SubmitResult } from './horizon.js';
 
 /** An asset identified by code and issuing account. */
 export interface AssetRef {
@@ -41,7 +41,7 @@ export async function assertTrustline(
   accountId: string,
   asset: AssetRef,
 ): Promise<void> {
-  const account = await horizon.loadAccount(accountId);
+  const account = await loadAccountOrThrow(horizon, accountId);
   if (!accountHasTrustline(account, asset)) {
     throw new TrustlineMissingError(accountId, asset.code, asset.issuer);
   }
@@ -88,10 +88,10 @@ export async function addSponsoredTrustline(
     timeoutSeconds = 120,
   } = params;
 
-  const account = await horizon.loadAccount(accountId);
+  const account = await loadAccountOrThrow(horizon, accountId);
   if (accountHasTrustline(account, asset)) return undefined;
 
-  const sponsorAccount = await horizon.loadAccount(sponsorPublicKey);
+  const sponsorAccount = await loadAccountOrThrow(horizon, sponsorPublicKey);
 
   const tx = new TransactionBuilder(sponsorAccount, {
     fee: BASE_FEE,
