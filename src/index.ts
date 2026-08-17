@@ -10,6 +10,7 @@ import type { AccountStore, ResolvedAccount } from './resolver/types.js';
 import { createSponsoredAccount } from './accounts/sponsoredCreate.js';
 import type { HorizonLike } from './accounts/horizon.js';
 import type { Signer } from './signer/types.js';
+import { RegistrationFailedError } from './errors.js';
 
 export { normalizeMsisdn, MsisdnResolver } from './resolver/resolver.js';
 export type { AccountStore, ResolvedAccount } from './resolver/types.js';
