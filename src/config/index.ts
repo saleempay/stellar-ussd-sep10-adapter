@@ -3,6 +3,15 @@
  *
  * All values default to Stellar **testnet**. Mainnet operation is out of
  * scope for this reference implementation and has not been validated.
+ *
+ * `HORIZON_URL` and `NETWORK_PASSPHRASE` describe the same network and must
+ * change together. Overriding one alone is not detected here and surfaces
+ * as `tx_bad_auth` when a transaction is submitted (the signature binds to
+ * the passphrase, and the Horizon instance validates against its own
+ * network). There is deliberately no runtime consistency guard: a check
+ * that maps URL to passphrase would false-positive on legitimate
+ * alternative Horizon endpoints for the same network (self-hosted or
+ * third-party instances), so the pairing is documented instead of enforced.
  */
 
 import { ConfigError } from '../errors.js';
