@@ -146,6 +146,35 @@ condition as the same typed `TrustlineMissingError` (`code:
 "TRUSTLINE_MISSING"`), so handle one error type and you have covered both
 paths. Branch on `error.code` / `instanceof`, never on message text.
 
+A related case: calling `assertTrustline` (or any account load) for an
+account that does not exist on the network, for example an MSISDN whose
+account was never created, surfaces as `AccountNotFoundError` (`code:
+"ACCOUNT_NOT_FOUND"`, carrying the missing `accountId`) rather than a raw
+Horizon 404. A missing sponsor account (misconfigured `SPONSOR_PUBLIC_KEY`)
+maps the same way, and the `accountId` field tells you which account was
+missing.
+
+## Known limitations, documented for adopters, out of sprint scope
+
+These are deliberate simplifications of the reference implementation. A
+production deployment must address them; the sprint does not.
+
+- **Sponsor sequence contention.** One sponsor account is the source of
+  every creation transaction, so creations are serialized on its sequence
+  number: two creations submitted concurrently from the same sponsor
+  collide (`tx_bad_seq`) and one must be retried. This is fine for the
+  sprint's demonstration volume. The scaling path is channel accounts (a
+  pool of fee-and-sequence source accounts, with the sponsor as an
+  operation-level source), which is not implemented here.
+- **Fee strategy.** Transactions are built with `BASE_FEE`, the network
+  minimum (100 stroops per operation, so 400 for the four-operation
+  sponsorship sandwich, matching the figure measured in `EVIDENCE.md`).
+  Under surge pricing, submissions at the minimum fail with
+  `tx_insufficient_fee`, and there is no retry or fee bump in this
+  implementation. A production deployment needs a fee strategy: bump the
+  fee and resubmit, or wrap the transaction in a fee-bump transaction from
+  the sponsor.
+
 ## Testnet quickstart
 
 See the README quickstart. Everything in this repository targets testnet
