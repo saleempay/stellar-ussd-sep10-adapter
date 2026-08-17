@@ -5,7 +5,7 @@ import {
   TransactionBuilder,
 } from '@stellar/stellar-sdk';
 
-import { decodeSubmissionError } from '../errors.js';
+import { SignerUnavailableError, decodeSubmissionError } from '../errors.js';
 import type { Signer } from '../signer/types.js';
 import { loadAccountOrThrow, type HorizonLike, type SubmitResult } from './horizon.js';
 
@@ -47,10 +47,15 @@ export interface CreateSponsoredAccountParams {
  * 4. `endSponsoringFutureReserves` (source: new account)
  *
  * Both the sponsor (transaction source) and the new account (source of ops
- * 3–4) must sign; both signatures are obtained through the {@link Signer}
- * seam, so no key material is handled here.
+ * 3 to 4) must sign; both signatures are obtained through the {@link Signer}
+ * seam, so no key material is handled here. Before anything is built, the
+ * signer is asked `canSignFor` each of the two accounts, so a signer that
+ * cannot produce a required signature fails fast with no network activity.
  *
  * @returns The submission result (transaction hash and ledger).
+ * @throws SignerUnavailableError when the signer cannot sign for the sponsor
+ *   or the new account (preflight, before any Horizon call).
+ * @throws AccountNotFoundError when the sponsor account does not exist.
  * @throws TransactionFailedError (typed, with Horizon result codes) on rejection.
  */
 export async function createSponsoredAccount(
@@ -65,6 +70,18 @@ export async function createSponsoredAccount(
     asset,
     timeoutSeconds = 120,
   } = params;
+
+  // Signer preflight: confirm the backend can sign for both required
+  // signers before any Horizon round-trip or transaction construction. A
+  // sponsor public key whose secret the signer does not hold fails here
+  // with a clear SignerUnavailableError instead of a confusing submission
+  // error. Week 2's authentication path will run the same preflight before
+  // requesting a SEP-10 challenge.
+  for (const accountId of [sponsorPublicKey, newAccountId]) {
+    if (!(await signer.canSignFor(accountId))) {
+      throw new SignerUnavailableError(accountId);
+    }
+  }
 
   const sponsorAccount = await loadAccountOrThrow(horizon, sponsorPublicKey);
 

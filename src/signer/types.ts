@@ -36,6 +36,14 @@ export interface Signer {
 
   /**
    * Whether this signer can currently produce signatures for `accountId`.
+   *
+   * Adapter contract: this is called as a **preflight before transaction
+   * construction**, once per required signer, so that a signer that cannot
+   * produce a needed signature fails fast with no Horizon round-trip.
+   * Implementations should therefore make it cheap (a local capability
+   * check, not a network call where avoidable). Returning `true` and then
+   * throwing from `signTransaction` is still handled, but defeats the
+   * preflight.
    */
   canSignFor(accountId: string): Promise<boolean>;
 

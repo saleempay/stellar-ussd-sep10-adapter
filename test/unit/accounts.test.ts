@@ -1,5 +1,6 @@
 import {
   Account,
+  Keypair,
   Networks,
   Operation,
   TransactionBuilder,
@@ -118,6 +119,63 @@ describe('createSponsoredAccount', () => {
   it('carries signatures from both sponsor and new account', async () => {
     const { horizon } = await run(true);
     expect(horizon.submitted[0]!.signatures).toHaveLength(2);
+  });
+
+  describe('canSignFor preflight', () => {
+    /** Tracks whether Horizon was touched, to prove the preflight runs first. */
+    class CountingHorizon extends StubHorizon {
+      loads = 0;
+      override async loadAccount(id: string) {
+        this.loads++;
+        return super.loadAccount(id);
+      }
+    }
+
+    it('fails fast on a sponsor the signer cannot sign for, with no Horizon call', async () => {
+      const horizon = new CountingHorizon();
+      const signer = new LocalKeypairSigner();
+      const strangerSponsor = Keypair.random().publicKey();
+      horizon.addAccount(strangerSponsor);
+      const newAccountId = await signer.createAccountKey();
+
+      await expect(
+        createSponsoredAccount({
+          horizon,
+          networkPassphrase: Networks.TESTNET,
+          sponsorPublicKey: strangerSponsor,
+          newAccountId,
+          signer,
+        }),
+      ).rejects.toMatchObject({ code: 'SIGNER_UNAVAILABLE', accountId: strangerSponsor });
+      expect(horizon.loads).toBe(0);
+      expect(horizon.submitted).toHaveLength(0);
+    });
+
+    it('fails fast on a new account the signer cannot sign for, with no Horizon call', async () => {
+      const horizon = new CountingHorizon();
+      const signer = new LocalKeypairSigner();
+      const sponsor = await signer.createAccountKey();
+      horizon.addAccount(sponsor);
+      const foreignNewAccount = Keypair.random().publicKey();
+
+      await expect(
+        createSponsoredAccount({
+          horizon,
+          networkPassphrase: Networks.TESTNET,
+          sponsorPublicKey: sponsor,
+          newAccountId: foreignNewAccount,
+          signer,
+        }),
+      ).rejects.toMatchObject({ code: 'SIGNER_UNAVAILABLE', accountId: foreignNewAccount });
+      expect(horizon.loads).toBe(0);
+      expect(horizon.submitted).toHaveLength(0);
+    });
+
+    it('happy path is unchanged when the signer holds both keys', async () => {
+      const { horizon, result } = await run(true);
+      expect(result.hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(horizon.submitted).toHaveLength(1);
+    });
   });
 
   it('maps Horizon rejection to TransactionFailedError with result codes', async () => {
