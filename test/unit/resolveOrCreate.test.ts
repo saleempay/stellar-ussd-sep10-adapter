@@ -5,6 +5,7 @@ import {
   InMemoryAccountStore,
   InvalidMsisdnError,
   LocalKeypairSigner,
+  RegistrationFailedError,
   resolveOrCreateAccount,
   type HorizonAccount,
   type HorizonLike,
@@ -92,6 +93,37 @@ describe('resolveOrCreateAccount', () => {
     horizon.submitError = undefined;
     const retry = await resolveOrCreateAccount(deps, '+99941520002');
     expect(retry.created).toBe(true);
+  });
+
+  it('surfaces a store-write failure after creation as RegistrationFailedError', async () => {
+    const { deps, horizon, signer } = makeDeps();
+    const sponsor = await signer.createAccountKey();
+    deps.sponsorPublicKey = sponsor;
+    horizon.addAccount(sponsor);
+    const diskError = new Error('EIO: disk write failed');
+    deps.store = {
+      get: async () => undefined,
+      put: async () => {
+        throw diskError;
+      },
+      delete: async () => undefined,
+    };
+
+    let caught: unknown;
+    try {
+      await resolveOrCreateAccount(deps, '+99941520003');
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(RegistrationFailedError);
+    const e = caught as RegistrationFailedError;
+    expect(e.code).toBe('REGISTRATION_FAILED');
+    expect(e.accountId).toMatch(/^G[A-Z2-7]{55}$/);
+    expect(e.msisdn).toBe('+99941520003');
+    expect(e.cause).toBe(diskError);
+    expect(e.message).toContain('requires operator reconciliation');
+    // The account really was created on-chain (one submission happened).
+    expect(horizon.submitCount).toBe(1);
   });
 
   it('rejects non-E.164 input before any network activity', async () => {

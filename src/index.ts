@@ -43,6 +43,7 @@ export {
   InvalidMsisdnError,
   TrustlineMissingError,
   AccountNotFoundError,
+  RegistrationFailedError,
   SignerUnavailableError,
   TransactionFailedError,
   ConfigError,
@@ -71,12 +72,20 @@ export interface ResolveOrCreateDeps {
  *   records the mapping, and returns `created: true` with the transaction
  *   hash.
  *
- * The mapping is recorded only after on-chain creation succeeds, so a failed
- * submission never leaves a dangling MSISDN → account entry.
+ * Failure ordering, stated honestly in both directions:
+ *
+ * - The mapping is recorded only after on-chain creation succeeds, so a
+ *   failed submission never leaves a dangling MSISDN → account entry.
+ * - A failed registration after a successful submission leaves a funded
+ *   on-chain account (sponsored reserves locked) with no mapping. That case
+ *   is surfaced as {@link RegistrationFailedError}, which carries the
+ *   created `accountId`, the MSISDN, and the store error, so an operator
+ *   can reconcile rather than lose the account.
  *
  * @throws InvalidMsisdnError when the MSISDN is not canonical E.164 (see
  *   that error's docs: country-code inference is the caller's job).
  * @throws TransactionFailedError when the network rejects the creation.
+ * @throws RegistrationFailedError when the store write fails after creation.
  */
 export async function resolveOrCreateAccount(
   deps: ResolveOrCreateDeps,
@@ -99,7 +108,11 @@ export async function resolveOrCreateAccount(
     signer: deps.signer,
     asset: deps.asset,
   });
-  await resolver.register(msisdn, newAccountId);
+  try {
+    await resolver.register(msisdn, newAccountId);
+  } catch (cause) {
+    throw new RegistrationFailedError(newAccountId, msisdn, cause);
+  }
 
   return { msisdn, accountId: newAccountId, created: true, creationTxHash: result.hash };
 }

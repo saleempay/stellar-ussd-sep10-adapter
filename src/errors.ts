@@ -126,6 +126,39 @@ export class TransactionFailedError extends AdapterError {
   }
 }
 
+/**
+ * The account was created on-chain but recording the MSISDN mapping in the
+ * {@link AccountStore} failed afterwards.
+ *
+ * This is the reconciliation case: the account exists with sponsored
+ * reserves locked, and no mapping points at it, so a retry for the same
+ * MSISDN would create a second account. The error carries everything an
+ * operator needs to reconcile (`accountId`, `msisdn`, and the underlying
+ * `cause`) instead of losing the account ID to a stack trace.
+ */
+export class RegistrationFailedError extends AdapterError {
+  /** The account that now exists on-chain without a mapping. */
+  readonly accountId: string;
+  /** The canonical E.164 MSISDN the account was created for. */
+  readonly msisdn: string;
+  /** The store error that caused the failure. */
+  override readonly cause: unknown;
+
+  constructor(accountId: string, msisdn: string, cause: unknown) {
+    super(
+      'REGISTRATION_FAILED',
+      `Account ${accountId} was created on-chain with sponsored reserves for ` +
+        `${msisdn}, but recording the MSISDN mapping failed. The account exists ` +
+        'and requires operator reconciliation: record the mapping manually or ' +
+        'reclaim the sponsorship. Underlying cause: ' +
+        (cause instanceof Error ? cause.message : String(cause)),
+    );
+    this.accountId = accountId;
+    this.msisdn = msisdn;
+    this.cause = cause;
+  }
+}
+
 /** Required configuration is missing or inconsistent. */
 export class ConfigError extends AdapterError {
   constructor(message: string) {
