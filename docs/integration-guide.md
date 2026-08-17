@@ -61,10 +61,25 @@ Warnings that apply to any store implementation:
   `JsonFileAccountStore` persists to a JSON file with zero native
   dependencies but is single-process/single-node. Neither is a production
   store.
+- `JsonFileAccountStore` is atomic against concurrent readers
+  (write-temp-then-rename) but not crash-durable: there is no `fsync`
+  before the rename, so a host crash can leave a truncated or empty file
+  on some filesystems, and its synchronous writes block the event loop.
+  Production deployments need a durable store. This matters concretely
+  because a lost mapping after account creation is exactly the
+  reconciliation scenario surfaced by `RegistrationFailedError` (below).
 - The reference flow records a mapping only **after** on-chain creation
-  succeeds. If two sessions race to create an account for the same MSISDN,
-  the reference store is last-write-wins; implement put-if-absent
-  semantics in your store if that race matters in your deployment.
+  succeeds, so a failed submission never leaves a dangling entry. The
+  reverse failure is also possible: if the store write fails after the
+  account was created, the account exists on-chain with sponsored reserves
+  and no mapping. That case is surfaced as a typed
+  `RegistrationFailedError` (`code: "REGISTRATION_FAILED"`) carrying the
+  created `accountId`, the MSISDN, and the store error, so an operator can
+  reconcile (record the mapping manually or reclaim the sponsorship)
+  rather than lose the account. Log this error's fields, do not swallow it.
+- If two sessions race to create an account for the same MSISDN, the
+  reference store is last-write-wins; implement put-if-absent semantics
+  in your store if that race matters in your deployment.
 
 ## Supplying your own signer
 
