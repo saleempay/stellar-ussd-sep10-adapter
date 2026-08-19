@@ -37,8 +37,45 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-Specification stage. Implementation begins 10 August 2026, targeting a first 
-public release with a working USSD authentication flow against Stellar testnet.
+**Week 1 of 4 delivered** (sprint started 10 August 2026, targeting a first
+public release with a working USSD authentication flow against Stellar
+testnet):
+
+- MSISDN → Stellar account resolution behind a pluggable registry
+  (in-memory and JSON-file reference stores)
+- Account creation with **sponsored reserves** — the user account holds
+  0 XLM; measured reserve costs are recorded in [EVIDENCE.md](EVIDENCE.md)
+  with verifiable testnet transaction hashes
+- Trustline establishment inside the same sponsored transaction, with a
+  typed missing-trustline error for callers
+- The **signer interface** defined and documented, with a local reference
+  implementation (clearly marked NOT FOR PRODUCTION) so the flow verifies
+  from a clean clone — see [docs/integration-guide.md](docs/integration-guide.md)
+
+Not yet built (later sprint weeks): the SEP-10 challenge/JWT flow (Week 2)
+and the USSD session layer with PIN consent (Week 3). Everything targets
+**testnet only**.
+
+## Quickstart (testnet)
+
+Requires Node.js ≥ 22.
+
+```
+git clone https://github.com/saleempay/stellar-ussd-sep10-adapter
+cd stellar-ussd-sep10-adapter
+npm install
+npm test                          # offline unit tests
+
+# Live testnet end-to-end: fund a throwaway sponsor account…
+node scripts/setup-sponsor.mjs
+cp .env.example .env              # then paste the two printed SPONSOR_* lines
+# …and run the flow: resolve a phone number, create the account with
+# sponsored reserves, establish the trustline, print tx hashes:
+npm run test:e2e
+```
+
+The e2e run prints stellar.expert links for every transaction it submits.
+`.env` is gitignored — never commit it.
 
 ## Licence
 

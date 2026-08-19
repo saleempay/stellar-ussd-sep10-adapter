@@ -1,0 +1,15 @@
+# Secrets — never commit key material of any kind
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local run artifacts (integration-test raw output, local signer/store files)
+test-output/
+*.local.json
+
+# Editor/OS noise
+.DS_Store
