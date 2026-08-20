@@ -1,10 +1,11 @@
 # Integration guide
 
-> Status: Week 1 of a 4-week build. This guide currently covers the
-> adapter core surface delivered in Week 1 — MSISDN resolution, sponsored
-> account creation, trustline establishment, and the signer interface. The
-> SEP-10 challenge/JWT flow (Week 2) and the USSD session layer (Week 3)
-> will extend it.
+> Status: Week 2 of a 4-week build. This guide covers the adapter core
+> surface delivered in Week 1 (MSISDN resolution, sponsored account
+> creation, trustline establishment, the signer interface) and the SEP-10
+> authentication flow delivered in Week 2 (challenge request, verification
+> before signing, signature orchestration, JWT issuance). The USSD session
+> layer (Week 3) will extend it.
 
 This library is a public reference implementation. It is designed to be
 adopted without contacting the maintainer, and everything you need to run
@@ -153,6 +154,125 @@ account was never created, surfaces as `AccountNotFoundError` (`code:
 Horizon 404. A missing sponsor account (misconfigured `SPONSOR_PUBLIC_KEY`)
 maps the same way, and the `accountId` field tells you which account was
 missing.
+
+## SEP-10 authentication: challenge, verify, sign, token
+
+Week 2 adds the authentication flow: obtain a SEP-10 JWT from an anchor
+for an account that holds no client-side key, with every signature going
+through the same `Signer` seam Week 1 defined.
+
+```ts
+import { authenticate, fetchWebAuthConfig } from 'stellar-ussd-sep10-adapter';
+
+const anchor = await fetchWebAuthConfig('testanchor.stellar.org');
+const { token, claims } = await authenticate(
+  { signer, networkPassphrase, anchor },
+  accountId,
+);
+// token: the anchor's JWT, use it as `Authorization: Bearer <token>`
+// claims: the decoded payload (iss, sub, iat, exp, ...)
+```
+
+What `authenticate` does, in order: a `canSignFor` preflight (a signer
+that cannot sign for the account fails fast with `SignerUnavailableError`
+and no anchor round-trip), a challenge GET, full verification of the
+challenge (next section), exactly one signature through the signer seam,
+a token POST, a claims decode, and a scope check on the issued token. The
+challenge transaction has sequence number zero and is never submitted to
+the network; it exists only to be signed and handed back.
+
+### The adapter stores nothing (a settled ruling)
+
+`authenticate` returns the token and its decoded claims to the caller and
+keeps no copy: no token cache, no session state. Custody of the token
+across a USSD session is the session layer's concern (Week 3). "Session
+and account scoping" is carried by the claims themselves: `sub` binds the
+token to one account, `iat` and `exp` bound the session window, `iss`
+names the anchor. A caller holding a token re-checks it before each use
+with the pure helper:
+
+```ts
+import { assertTokenScope } from 'stellar-ussd-sep10-adapter';
+assertTokenScope(claims, accountId); // throws TokenScopeError on mismatch or expiry
+```
+
+### Challenge verification and the failedCheck contract
+
+The adapter refuses to sign a challenge that fails any check, throwing a
+typed `ChallengeValidationError` (`code: "CHALLENGE_INVALID"`) whose
+`failedCheck` field names the first check that failed. **The names below
+are a stable public contract**: the Week 3 session layer (and your code)
+can branch on them, so a shipped name is never renamed or removed. Each
+named check is explicit adapter code; the SDK's own
+`WebAuth.readChallengeTx` then runs as an authoritative final gate.
+
+| failedCheck | The challenge was refused because |
+|---|---|
+| `deserialization` | it is not a decodable classic transaction (fee-bump envelopes included) |
+| `sequence_not_zero` | its sequence number is not 0, so it could execute on the network |
+| `source_not_server` | its source account is not the anchor's toml `SIGNING_KEY` |
+| `no_operations` | it contains no operations |
+| `first_op_source_missing` | the first operation names no source, so there is no client account |
+| `first_op_not_manage_data` | the first operation is not `manage_data` |
+| `home_domain_mismatch` | the first operation's key is not `"<home domain> auth"` for the expected home domain |
+| `timebounds_missing` | it has no finite timebounds |
+| `timebounds_expired` | the current time is outside its timebounds window (300 second grace each side, matching the SDK) |
+| `nonce_invalid` | the first operation's value is not a base64 encoding of 48 random bytes |
+| `extra_op_invalid` | a subsequent operation is not `manage_data`, or is not sourced by the server account (`client_domain` excepted) |
+| `web_auth_domain_mismatch` | a `web_auth_domain` operation does not name the auth endpoint's host |
+| `server_signature_invalid` | the anchor's signature is absent or invalid under the configured network passphrase (a wrong network fails here too) |
+| `network_passphrase_mismatch` | the challenge response declared a `network_passphrase` that is not the configured one (checked before parsing) |
+| `client_account_mismatch` | it names a client account other than the one we asked to authenticate |
+| `unexpected_memo` | it carries a memo, and this adapter never requests one |
+| `sdk_validation` | the SDK's `WebAuth.readChallengeTx` refused it for a reason not named above (defense in depth) |
+
+Two more typed errors complete the auth taxonomy:
+`WebAuthRequestFailedError` (`code: "WEB_AUTH_REQUEST_FAILED"`, with
+`phase` "challenge" or "token", the HTTP status, and the anchor's `error`
+string verbatim) for a failed HTTP exchange, and `TokenScopeError`
+(`code: "TOKEN_SCOPE_MISMATCH"`) for a token whose claims do not scope it
+to the expected account or that has expired. As everywhere in this
+library: branch on `code` / `instanceof` / `failedCheck`, never on
+message text.
+
+### Security notes
+
+- **HTTPS only, pinned.** The stellar.toml is resolved with the SDK's
+  `StellarToml.Resolver` at its default posture (plain HTTP refused), a
+  discovered `WEB_AUTH_ENDPOINT` that is not `https://` is refused at
+  config-build time, and the challenge leg refuses non-https endpoints
+  again as defense in depth. There is no option to allow plain HTTP on the
+  auth path. This invariant is asserted by unit tests.
+- **The anchor's SIGNING_KEY comes from the toml, nothing else.** The
+  challenge's source account and signature are verified against the key
+  the anchor publishes at its own HTTPS domain, fetched fresh; the adapter
+  never accepts a signing key from the challenge itself.
+- **JWTs are decoded, not verified.** The token is the anchor's own
+  bearer credential: the anchor verifies it on every authenticated call,
+  and clients hold no verification key for it. Treat the decoded claims
+  as the anchor's assertion, not as independently proven. Protect the
+  token like a password for its lifetime (`exp`).
+- **Clock skew.** The timebounds check tolerates 300 seconds of skew each
+  side, matching the SDK's own reader. Hosts with worse clock drift will
+  see `timebounds_expired` refusals; fix the clock, not the check.
+
+### client_domain: a documented extension point, not implemented
+
+SEP-10 optionally lets a client application prove its own identity in
+addition to the account's, by sending `client_domain` on the challenge
+request and co-signing the challenge with the `SIGNING_KEY` published on
+that domain's stellar.toml. This adapter authenticates plainly and does
+not implement it: `requestChallenge` never sends the parameter, and a
+`client_domain` operation appearing in a challenge is tolerated by
+verification (per spec) but never co-signed by us.
+
+Where it would plug in, for an adopter who needs wallet attribution: add
+`client_domain` to the GET in `src/auth/challenge.ts`, and in
+`src/auth/authenticate.ts` add a second `signTransaction` call, through a
+`Signer` whose backend holds the client-domain key, for the account named
+by the challenge's `client_domain` operation source. The verification
+core already recognizes the operation, and the anchor will then include a
+`client_domain` claim in the JWT.
 
 ## Known limitations, documented for adopters, out of sprint scope
 

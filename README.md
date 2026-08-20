@@ -37,7 +37,7 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-**Week 1 of 4 delivered** (sprint started 10 August 2026, targeting a first
+**Week 2 of 4 delivered** (sprint started 10 August 2026, targeting a first
 public release with a working USSD authentication flow against Stellar
 testnet):
 
@@ -51,10 +51,16 @@ testnet):
 - The **signer interface** defined and documented, with a local reference
   implementation (clearly marked NOT FOR PRODUCTION) so the flow verifies
   from a clean clone — see [docs/integration-guide.md](docs/integration-guide.md)
+- **SEP-10 authentication** (Week 2): challenge request over HTTPS, full
+  challenge verification before signing (a typed refusal names the failed
+  check), signature through the signer seam, and JWT issuance. A live
+  testnet run against testanchor.stellar.org, with the anchor accepting
+  the JWT on an authenticated SEP-6 endpoint, is recorded in
+  [EVIDENCE.md](EVIDENCE.md) with the full HTTP transcript.
 
-Not yet built (later sprint weeks): the SEP-10 challenge/JWT flow (Week 2)
-and the USSD session layer with PIN consent (Week 3). Everything targets
-**testnet only**.
+Not yet built (later sprint weeks): the USSD session layer with PIN
+consent (Week 3) and the demo and evidence packaging (Week 4). Everything
+targets **testnet only**.
 
 ## Quickstart (testnet)
 
