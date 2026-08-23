@@ -204,7 +204,11 @@ typed `ChallengeValidationError` (`code: "CHALLENGE_INVALID"`) whose
 are a stable public contract**: the Week 3 session layer (and your code)
 can branch on them, so a shipped name is never renamed or removed. Each
 named check is explicit adapter code; the SDK's own
-`WebAuth.readChallengeTx` then runs as an authoritative final gate.
+`WebAuth.readChallengeTx` then runs as an authoritative final gate. When a
+challenge fails more than one check, the reported `failedCheck` is the
+first refusal in verification order; that ordering is an implementation
+detail callers must not depend on. Only the names themselves are
+contract.
 
 | failedCheck | The challenge was refused because |
 |---|---|
