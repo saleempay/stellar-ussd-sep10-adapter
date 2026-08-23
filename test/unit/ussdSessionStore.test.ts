@@ -14,6 +14,7 @@ function makeSession(overrides: Partial<UssdSession> = {}): UssdSession {
     msisdn: '+999700000001',
     state: 'welcome',
     processedInputs: 0,
+    maskedHistory: [],
     pinVerified: false,
     signingClaimed: false,
     createdAt: T0,

@@ -49,6 +49,13 @@ export interface UssdSession {
    * equal inputs is recognized as a duplicate or replay, never re-run.
    */
   processedInputs: number;
+  /**
+   * The processed inputs with every PIN position replaced by `####`
+   * BEFORE the value reaches this record. The raw gateway text field is
+   * never persisted anywhere; this masked form is what session logging
+   * and evidence capture may show.
+   */
+  maskedHistory: string[];
   /** True once the PIN was verified in this session. */
   pinVerified: boolean;
   /** True once the one signing claim is spent. */
