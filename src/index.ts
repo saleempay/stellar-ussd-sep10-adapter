@@ -1,8 +1,10 @@
 /**
- * stellar-ussd-sep10-adapter — Week 1 surface.
+ * stellar-ussd-sep10-adapter: the Weeks 1 and 2 surface.
  *
- * MSISDN → Stellar account resolution, sponsored account creation with
- * trustline establishment, and the pluggable {@link Signer} seam.
+ * MSISDN to Stellar account resolution, sponsored account creation with
+ * trustline establishment, the pluggable {@link Signer} seam (Week 1), and
+ * SEP-10 authentication through that seam: challenge request, verification
+ * before signing, signature orchestration, and JWT issuance (Week 2).
  */
 
 import { normalizeMsisdn, MsisdnResolver } from './resolver/resolver.js';
@@ -38,6 +40,35 @@ export {
   type SubmitResult,
 } from './accounts/horizon.js';
 
+export {
+  fetchWebAuthConfig,
+  buildWebAuthConfig,
+  type WebAuthConfig,
+  type StellarTomlFields,
+  type FetchWebAuthConfigDeps,
+} from './auth/toml.js';
+export { requestChallenge, type RequestChallengeParams } from './auth/challenge.js';
+export { DEFAULT_NETWORK_TIMEOUT_MS } from './auth/timeout.js';
+export {
+  verifyChallenge,
+  TIMEBOUNDS_GRACE_SECONDS,
+  MAX_CHALLENGE_WINDOW_SECONDS,
+  type VerifyChallengeParams,
+  type VerifiedChallenge,
+} from './auth/verify.js';
+export {
+  submitChallenge,
+  decodeJwtClaims,
+  assertTokenScope,
+  type Sep10JwtClaims,
+  type SubmitChallengeParams,
+} from './auth/token.js';
+export {
+  authenticate,
+  type AuthenticateDeps,
+  type AuthenticationResult,
+} from './auth/authenticate.js';
+
 export { loadConfig, TESTNET_DEFAULTS, type AdapterConfig } from './config/index.js';
 export {
   AdapterError,
@@ -48,6 +79,10 @@ export {
   SignerUnavailableError,
   TransactionFailedError,
   ConfigError,
+  ChallengeValidationError,
+  WebAuthRequestFailedError,
+  TokenScopeError,
+  type ChallengeFailedCheck,
   decodeSubmissionError,
   isHorizonNotFound,
 } from './errors.js';

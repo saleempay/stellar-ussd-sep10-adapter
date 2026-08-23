@@ -275,3 +275,180 @@ npm run test:e2e
 
 Each run creates a fresh account for a fresh fictional MSISDN and prints
 new hashes with stellar.expert links.
+
+---
+
+# Evidence: Week 2 (SEP-10 authentication)
+
+## What this file section proves, in plain language
+
+Week 2's software really authenticated with a live Stellar anchor on the
+test network on 20 August 2026, for an account that holds no key material
+on the client side. The anchor issued a session token (a JWT) for that
+account and then accepted the token on a protected endpoint that had
+refused the very same request moments earlier without it.
+
+One thing needs saying plainly so it cannot confuse a reviewer. The
+statement of work asks for "first testnet transaction hashes". A SEP-10
+authentication challenge is a transaction that is deliberately built so it
+CANNOT run on the network (its sequence number is zero), and it is never
+submitted: it exists only to be signed and handed back. Authentication
+therefore produces no on-chain hash by design. What this section provides
+instead is (1) the complete, timestamped HTTP exchange with the anchor,
+(2) the issued token with its signature removed, and (3) the on-chain hash
+of the account creation this run performed first through the Week 1 flow,
+which satisfies the "first testnet transaction hashes" wording literally.
+Nothing here is fabricated; every block below was captured from the live
+run.
+
+- Network: Stellar testnet (`https://horizon-testnet.stellar.org`,
+  passphrase `Test SDF Network ; September 2015`)
+- Produced by: `RUN_TESTNET_E2E=1 npx vitest run test/integration/sep10.e2e.test.ts`
+  (`test/integration/sep10.e2e.test.ts`), run completed `2026-08-20T00:46:33.773Z`
+- Full raw capture: written to `test-output/sep10-e2e-evidence.json` during
+  the run (local artifact, gitignored; the material excerpts are embedded
+  below with one redaction, stated where it appears)
+- Protocol note: this run predates the testnet upgrade to Protocol 28
+  scheduled for 27 August 2026. Per the SDK's v17 release notes the
+  Protocol 28 changes touch only Soroban authorization credentials, not
+  the classic transactions SEP-10 uses; a post-upgrade re-verification run
+  is scheduled as part of Week 3/4 work, not this session.
+
+## Accounts used (testnet, throwaway; fresh sponsor for Week 2)
+
+| Role | Account |
+|---|---|
+| Sponsor (operator) | `GDF7F2NVNZS5WHBX2OYBUPR4ST3CLRSD2ZHXDVOERM2BSRBJSHRPCU6O` |
+| Created user account (no client-side key) | `GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM` |
+| MSISDN (fictional, +999 unassigned country code) | `+99990910369` |
+
+The Week 1 sponsor account remains on testnet; its throwaway secret lived
+only in a wiped local environment, so Week 2 bootstrapped a fresh sponsor
+with `scripts/setup-sponsor.mjs` (friendbot funding tx
+`74c6cb42253be0a3321f78917af2abee33fdcf6db1b085957cd17cd340f3e116`).
+
+## Anchor coordinates (read live from stellar.toml over HTTPS)
+
+Fetched from `https://testanchor.stellar.org/.well-known/stellar.toml` at
+`2026-08-20T00:46:27.817Z`:
+
+| Field | Value |
+|---|---|
+| WEB_AUTH_ENDPOINT | `https://testanchor.stellar.org/auth` |
+| SIGNING_KEY | `GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR` |
+| NETWORK_PASSPHRASE | `Test SDF Network ; September 2015` |
+| TRANSFER_SERVER (SEP-6) | `https://testanchor.stellar.org/sep6` |
+
+## On-chain transaction: account creation via the Week 1 flow
+
+This run's on-chain transaction (the SEP-10 exchange that follows touches
+no ledger). The usual sponsorship sandwich, four operations.
+
+- Hash: `b3de5978fef48e3991b780821ce48a5ef4d5e49566cd52a3f1f71c9f3657990e`
+- stellar.expert: <https://stellar.expert/explorer/testnet/tx/b3de5978fef48e3991b780821ce48a5ef4d5e49566cd52a3f1f71c9f3657990e>
+- Raw Horizon excerpt (`/transactions/{hash}`, retrieved during the run):
+
+```json
+{
+  "hash": "b3de5978fef48e3991b780821ce48a5ef4d5e49566cd52a3f1f71c9f3657990e",
+  "ledger": 4232903,
+  "successful": true,
+  "created_at": "2026-08-20T00:46:31Z",
+  "operation_count": 4,
+  "fee_charged": "400"
+}
+```
+
+## SEP-10 exchange 1: challenge request (GET)
+
+- Request: `GET https://testanchor.stellar.org/auth?account=GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM&home_domain=testanchor.stellar.org`
+- Response: HTTP 200 at `2026-08-20T00:46:32.657Z`
+- Response `network_passphrase`: `Test SDF Network ; September 2015`
+  (matches the configured network)
+- Response `transaction` (the challenge, base64 XDR, embedded in full: it
+  is safe to publish because its sequence number is zero, so it can never
+  execute on any network):
+
+```
+AAAAAgAAAACOs4wuUbSbMTAM1yX25vNd8kro1MEFZuK9rh7ZGr+trQAAAMgAAAAAAAAAAAAAAAEAAAAAaoZOaAAAAABqhlHsAAAAAAAAAAIAAAABAAAAAAGy/iDOsQKQCHQPRsrwCeXGXCUmd4Lgucvb12ac5i/CAAAACgAAABt0ZXN0YW5jaG9yLnN0ZWxsYXIub3JnIGF1dGgAAAAAAQAAAEBLNmZ2RkFTUEtOeU03RTRqUzVvc0JCazJUNzUvdmswY0lrNHVaMzQvc2Z3d0lEQlZhN0FWbHJFOGVtVmN0Z1pGAAAAAQAAAACOs4wuUbSbMTAM1yX25vNd8kro1MEFZuK9rh7ZGr+trQAAAAoAAAAPd2ViX2F1dGhfZG9tYWluAAAAAAEAAAAWdGVzdGFuY2hvci5zdGVsbGFyLm9yZwAAAAAAAAAAAAEav62tAAAAQKtjHjrZ8vu6hgr8NHLaiugVe0KMOIZXkam8OOEPi6EUMC1gJE1+dUMN5U3Q6DQ+HggLHt4FwhchyBHCtsXHcw0=
+```
+
+Decoded, this challenge is: source = the anchor's SIGNING_KEY, sequence 0,
+timebounds `2026-08-20T00:46:32Z` to `2026-08-20T01:01:32Z`, operation 1 =
+`manage_data` named `testanchor.stellar.org auth` sourced by the user
+account with a 48 byte nonce, operation 2 = `manage_data` named
+`web_auth_domain` valued `testanchor.stellar.org` sourced by the anchor,
+one signature (the anchor's). The adapter verified all of that (plus the
+anchor's signature validity under the testnet passphrase) before signing:
+see `src/auth/verify.ts` and the failedCheck contract in the integration
+guide.
+
+## SEP-10 exchange 2: signed challenge (POST) and token response
+
+- Request: `POST https://testanchor.stellar.org/auth` with JSON body
+  `{"transaction": "<signed challenge XDR>"}`. The signed challenge as
+  POSTed (now carrying TWO signatures: the anchor's original plus the user
+  account's, added through the signer seam):
+
+```
+AAAAAgAAAACOs4wuUbSbMTAM1yX25vNd8kro1MEFZuK9rh7ZGr+trQAAAMgAAAAAAAAAAAAAAAEAAAAAaoZOaAAAAABqhlHsAAAAAAAAAAIAAAABAAAAAAGy/iDOsQKQCHQPRsrwCeXGXCUmd4Lgucvb12ac5i/CAAAACgAAABt0ZXN0YW5jaG9yLnN0ZWxsYXIub3JnIGF1dGgAAAAAAQAAAEBLNmZ2RkFTUEtOeU03RTRqUzVvc0JCazJUNzUvdmswY0lrNHVaMzQvc2Z3d0lEQlZhN0FWbHJFOGVtVmN0Z1pGAAAAAQAAAACOs4wuUbSbMTAM1yX25vNd8kro1MEFZuK9rh7ZGr+trQAAAAoAAAAPd2ViX2F1dGhfZG9tYWluAAAAAAEAAAAWdGVzdGFuY2hvci5zdGVsbGFyLm9yZwAAAAAAAAAAAAIav62tAAAAQKtjHjrZ8vu6hgr8NHLaiugVe0KMOIZXkam8OOEPi6EUMC1gJE1+dUMN5U3Q6DQ+HggLHt4FwhchyBHCtsXHcw2c5i/CAAAAQM0NhEyBsQqVGm+b70zqGHzGEa4abJSkobgzAu1Wuz9GSP7XcDBN1/O3xf15s9GrLIr19OIzj8+fuBISlM07zwY=
+```
+
+- Response: HTTP 200 at `2026-08-20T00:46:32.980Z` with `{"token": "<JWT>"}`.
+- The issued JWT, with its third segment (the signature) REDACTED before
+  committing, per the sprint's evidence rules; the full token was a live
+  24 hour bearer credential at capture time and lives only in the
+  gitignored raw capture:
+
+```
+eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI2MjlmYjcwMTBiODY1NDM1NWU1OTMzODNiOTU2MDNhNzkxMzdjMjdkMmVmMjU4OWM0YmE2MzUwYjlmYWYzZWZhIiwiaXNzIjoiaHR0cHM6Ly90ZXN0YW5jaG9yLnN0ZWxsYXIub3JnL2F1dGgiLCJzdWIiOiJHQUEzRjdSQVoyWVFGRUFJT1FIVU5TWFFCSFM0TVhCRkVaM1lGWUZaWlBONU9aVTQ0WVg0RUFGTSIsImlhdCI6MTc4NzE4Njc5MiwiZXhwIjoxNzg3MjczMTkyLCJhdWQiOlsic2VwMTAiXSwiaG9tZV9kb21haW4iOiJ0ZXN0YW5jaG9yLnN0ZWxsYXIub3JnIn0.[SIGNATURE REDACTED]
+```
+
+- The decoded claims (the session and account scoping the statement of
+  work names): `sub` binds the token to exactly the created account,
+  `iat`/`exp` bound the session window, `iss` names the anchor.
+
+```json
+{
+  "jti": "629fb7010b8654355e593383b95603a79137c27d2ef2589c4ba6350b9faf3efa",
+  "iss": "https://testanchor.stellar.org/auth",
+  "sub": "GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM",
+  "iat": 1787186792,
+  "exp": 1787273192,
+  "aud": ["sep10"],
+  "home_domain": "testanchor.stellar.org"
+}
+```
+
+`iat` decodes to `2026-08-20T00:46:32Z` and `exp` to
+`2026-08-21T00:46:32Z` (a 24 hour session window chosen by the anchor).
+
+## The anchor accepts the token: authenticated SEP-6 exchange
+
+The same request to the anchor's SEP-6 transactions endpoint, made twice
+seconds apart, first without the token and then with it:
+
+| Leg | Authorization header | Status | Body |
+|---|---|---|---|
+| 1 (at `2026-08-20T00:46:33.255Z`) | none | HTTP 403 | `{"error": "forbidden"}` |
+| 2 (at `2026-08-20T00:46:33.513Z`) | `Bearer <the JWT above>` | HTTP 200 | `{"transactions": []}` |
+
+- URL (both legs): `https://testanchor.stellar.org/sep6/transactions?asset_code=SRT&account=GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM`
+- The refusal status is anchor-defined (SEP-10 aware endpoints answer 401
+  or 403); the e2e accepts either and records the actual, which was 403.
+- The empty transactions list is correct: the account is brand new and has
+  no SEP-6 history. What matters is the contrast: refused without the
+  token, answered with it.
+
+## How to reproduce (Week 2)
+
+```
+npm install
+node scripts/setup-sponsor.mjs   # fund a throwaway testnet sponsor
+# copy the two printed lines into .env (never commit .env)
+RUN_TESTNET_E2E=1 npx vitest run test/integration/sep10.e2e.test.ts --no-file-parallelism
+```
+
+Each run creates a fresh account, authenticates it, and prints the
+exchange statuses; `npm run test:e2e` runs the Week 1 and Week 2 live
+tests together.

@@ -167,6 +167,122 @@ export class ConfigError extends AdapterError {
 }
 
 /**
+ * Names for every check the SEP-10 challenge verification can fail.
+ *
+ * These names are a stable public contract: callers (for example the Week 3
+ * session layer) branch on {@link ChallengeValidationError.failedCheck}, so
+ * a name, once shipped, is never renamed or removed. The complete list with
+ * meanings is documented in the integration guide's SEP-10 section.
+ */
+export type ChallengeFailedCheck =
+  | 'deserialization'
+  | 'sequence_not_zero'
+  | 'source_not_server'
+  | 'no_operations'
+  | 'first_op_source_missing'
+  | 'first_op_not_manage_data'
+  | 'home_domain_mismatch'
+  | 'timebounds_missing'
+  | 'timebounds_expired'
+  | 'timebounds_unbounded'
+  | 'timebounds_window_too_wide'
+  | 'nonce_invalid'
+  | 'extra_op_invalid'
+  | 'web_auth_domain_mismatch'
+  | 'server_signature_invalid'
+  | 'network_passphrase_mismatch'
+  | 'client_account_mismatch'
+  | 'unexpected_memo'
+  | 'unexpected_client_domain'
+  | 'sdk_validation';
+
+/**
+ * A SEP-10 challenge transaction failed verification and was refused before
+ * signing (or, for `network_passphrase_mismatch`, before parsing).
+ *
+ * The adapter never signs a challenge that fails any check. `failedCheck`
+ * names the first check that failed (see {@link ChallengeFailedCheck});
+ * branch on it or on `code`, never on message text.
+ */
+export class ChallengeValidationError extends AdapterError {
+  /** The first verification check that failed. Stable contract. */
+  readonly failedCheck: ChallengeFailedCheck;
+
+  constructor(failedCheck: ChallengeFailedCheck, message: string) {
+    super('CHALLENGE_INVALID', `Challenge refused (${failedCheck}): ${message}`);
+    this.failedCheck = failedCheck;
+  }
+}
+
+/**
+ * An HTTP exchange with the anchor's SEP-10 web auth endpoint failed: the
+ * anchor answered with a non-success status, or with a body the adapter
+ * could not use. Carries the HTTP status and the anchor's `error` string
+ * verbatim (when one was provided) so logs show exactly what the anchor
+ * said.
+ */
+export class WebAuthRequestFailedError extends AdapterError {
+  /** Which leg of the flow failed. */
+  readonly phase: 'toml' | 'challenge' | 'token';
+  /**
+   * HTTP status the anchor answered with. `0` when no HTTP response was
+   * received at all, which is the case for a timeout (see `timedOut`).
+   */
+  readonly httpStatus: number;
+  /** The anchor's `error` field, verbatim, when the body carried one. */
+  readonly anchorError?: string;
+  /**
+   * True when the leg exceeded its network timeout rather than being
+   * answered. Unambiguous: a timed-out leg always has `timedOut: true` and
+   * `httpStatus: 0`, and never carries an `anchorError`.
+   */
+  readonly timedOut: boolean;
+
+  constructor(
+    phase: 'toml' | 'challenge' | 'token',
+    httpStatus: number,
+    message: string,
+    anchorError?: string,
+    opts: { timedOut?: boolean } = {},
+  ) {
+    super(
+      'WEB_AUTH_REQUEST_FAILED',
+      `SEP-10 ${phase} request failed (${opts.timedOut ? 'timed out' : `HTTP ${httpStatus}`}): ${message}` +
+        (anchorError ? ` Anchor said: ${JSON.stringify(anchorError)}` : ''),
+    );
+    this.phase = phase;
+    this.httpStatus = httpStatus;
+    this.anchorError = anchorError;
+    this.timedOut = opts.timedOut ?? false;
+  }
+}
+
+/**
+ * The decoded JWT's claims do not scope the token to the expected account,
+ * or the token is expired.
+ *
+ * SEP-10 scopes a session through claims: `sub` binds the token to one
+ * account (plain `G...`, or `G...:memo`, where only the account part is
+ * compared), and `iat`/`exp` bound the session window. The adapter holds no
+ * token state (session custody belongs to the caller), so this error is how
+ * a scope violation surfaces, both from the adapter's own post-issuance
+ * check and from the pure `assertTokenScope` helper callers run before each
+ * use of a stored token.
+ */
+export class TokenScopeError extends AdapterError {
+  /** The account the token was expected to be scoped to. */
+  readonly accountId: string;
+  /** The `sub` claim as received, if any. */
+  readonly sub?: string;
+
+  constructor(accountId: string, message: string, sub?: string) {
+    super('TOKEN_SCOPE_MISMATCH', message);
+    this.accountId = accountId;
+    this.sub = sub;
+  }
+}
+
+/**
  * Shape of the `result_codes` extras block Horizon attaches to a rejected
  * transaction submission.
  */
