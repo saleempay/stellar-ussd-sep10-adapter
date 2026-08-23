@@ -74,7 +74,7 @@ interface CapturedCallback {
 describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () => {
   it(
     'completes the SOW journey end to end and rejects replay attempts',
-    { timeout: 15 * 60 * 1000 },
+    { timeout: (Number(process.env.USSD_E2E_WAIT_MINUTES ?? 12) + 3) * 60 * 1000 },
     async () => {
       if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -216,13 +216,16 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
       );
 
       // --- Wait for the operator-driven journey to complete ---
-      const deadline = Date.now() + 12 * 60 * 1000;
+      // Override with USSD_E2E_WAIT_MINUTES when gateway-side conditions
+      // (for example a sandbox outage) make a longer window necessary.
+      const waitMinutes = Number(process.env.USSD_E2E_WAIT_MINUTES ?? 12);
+      const deadline = Date.now() + waitMinutes * 60 * 1000;
       while (observed.depositRef === undefined && Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2_000));
       }
       expect(
         observed.depositRef,
-        'No completed journey observed within 12 minutes.',
+        `No completed journey observed within ${waitMinutes} minutes.`,
       ).toBeDefined();
       expect(observed.authCalls).toBe(1);
 
