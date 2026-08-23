@@ -48,6 +48,7 @@ export {
   type FetchWebAuthConfigDeps,
 } from './auth/toml.js';
 export { requestChallenge, type RequestChallengeParams } from './auth/challenge.js';
+export { DEFAULT_NETWORK_TIMEOUT_MS } from './auth/timeout.js';
 export {
   verifyChallenge,
   TIMEBOUNDS_GRACE_SECONDS,

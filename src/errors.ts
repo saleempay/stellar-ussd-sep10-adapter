@@ -223,26 +223,37 @@ export class ChallengeValidationError extends AdapterError {
  */
 export class WebAuthRequestFailedError extends AdapterError {
   /** Which leg of the flow failed. */
-  readonly phase: 'challenge' | 'token';
-  /** HTTP status the anchor answered with. */
+  readonly phase: 'toml' | 'challenge' | 'token';
+  /**
+   * HTTP status the anchor answered with. `0` when no HTTP response was
+   * received at all, which is the case for a timeout (see `timedOut`).
+   */
   readonly httpStatus: number;
   /** The anchor's `error` field, verbatim, when the body carried one. */
   readonly anchorError?: string;
+  /**
+   * True when the leg exceeded its network timeout rather than being
+   * answered. Unambiguous: a timed-out leg always has `timedOut: true` and
+   * `httpStatus: 0`, and never carries an `anchorError`.
+   */
+  readonly timedOut: boolean;
 
   constructor(
-    phase: 'challenge' | 'token',
+    phase: 'toml' | 'challenge' | 'token',
     httpStatus: number,
     message: string,
     anchorError?: string,
+    opts: { timedOut?: boolean } = {},
   ) {
     super(
       'WEB_AUTH_REQUEST_FAILED',
-      `SEP-10 ${phase} request failed (HTTP ${httpStatus}): ${message}` +
+      `SEP-10 ${phase} request failed (${opts.timedOut ? 'timed out' : `HTTP ${httpStatus}`}): ${message}` +
         (anchorError ? ` Anchor said: ${JSON.stringify(anchorError)}` : ''),
     );
     this.phase = phase;
     this.httpStatus = httpStatus;
     this.anchorError = anchorError;
+    this.timedOut = opts.timedOut ?? false;
   }
 }
 

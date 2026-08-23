@@ -14,7 +14,8 @@
 
 import { StellarToml } from '@stellar/stellar-sdk';
 
-import { ConfigError } from '../errors.js';
+import { ConfigError, WebAuthRequestFailedError } from '../errors.js';
+import { DEFAULT_NETWORK_TIMEOUT_MS, isTimeoutError } from './timeout.js';
 
 /**
  * The anchor coordinates the SEP-10 flow needs, all sourced from the
@@ -53,7 +54,13 @@ export interface FetchWebAuthConfigDeps {
    * SDK's `StellarToml.Resolver.resolve` with its default HTTPS-only
    * posture. Injected by unit tests with fixture toml objects.
    */
-  resolveToml?: (homeDomain: string) => Promise<StellarTomlFields>;
+  resolveToml?: (homeDomain: string, opts: { timeout: number }) => Promise<StellarTomlFields>;
+  /**
+   * Network timeout for the toml fetch, default
+   * {@link DEFAULT_NETWORK_TIMEOUT_MS}; passed to the resolver's own
+   * `timeout` option.
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -121,16 +128,34 @@ export function buildWebAuthConfig(
  * coordinates.
  *
  * @param homeDomain - The anchor's home domain, without protocol.
- * @throws ConfigError per {@link buildWebAuthConfig}, or the resolver's own
- *   error when the toml cannot be fetched.
+ * @throws ConfigError per {@link buildWebAuthConfig}.
+ * @throws WebAuthRequestFailedError (`phase: "toml"`, `timedOut: true`,
+ *   `httpStatus: 0`) when the fetch exceeds its timeout; any other resolver
+ *   failure propagates as the resolver's own error.
  */
 export async function fetchWebAuthConfig(
   homeDomain: string,
   deps: FetchWebAuthConfigDeps = {},
 ): Promise<WebAuthConfig> {
+  const timeoutMs = deps.timeoutMs ?? DEFAULT_NETWORK_TIMEOUT_MS;
   const resolveToml =
     deps.resolveToml ??
-    ((domain: string) => StellarToml.Resolver.resolve(domain) as Promise<StellarTomlFields>);
-  const toml = await resolveToml(homeDomain);
+    ((domain: string, opts: { timeout: number }) =>
+      StellarToml.Resolver.resolve(domain, opts) as Promise<StellarTomlFields>);
+  let toml: StellarTomlFields;
+  try {
+    toml = await resolveToml(homeDomain, { timeout: timeoutMs });
+  } catch (err) {
+    if (isTimeoutError(err)) {
+      throw new WebAuthRequestFailedError(
+        'toml',
+        0,
+        `No stellar.toml from ${homeDomain} within ${timeoutMs} ms.`,
+        undefined,
+        { timedOut: true },
+      );
+    }
+    throw err;
+  }
   return buildWebAuthConfig(toml, homeDomain);
 }

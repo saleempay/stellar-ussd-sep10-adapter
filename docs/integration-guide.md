@@ -231,8 +231,9 @@ named check is explicit adapter code; the SDK's own
 
 Two more typed errors complete the auth taxonomy:
 `WebAuthRequestFailedError` (`code: "WEB_AUTH_REQUEST_FAILED"`, with
-`phase` "challenge" or "token", the HTTP status, and the anchor's `error`
-string verbatim) for a failed HTTP exchange, and `TokenScopeError`
+`phase` "toml", "challenge" or "token", the HTTP status, the anchor's
+`error` string verbatim, and `timedOut: true` with `httpStatus: 0` when
+the leg exceeded its timeout) for a failed network exchange, and `TokenScopeError`
 (`code: "TOKEN_SCOPE_MISMATCH"`) for a token whose claims do not scope it
 to the expected account or that has expired. As everywhere in this
 library: branch on `code` / `instanceof` / `failedCheck`, never on
@@ -255,6 +256,15 @@ message text.
   and clients hold no verification key for it. Treat the decoded claims
   as the anchor's assertion, not as independently proven. Protect the
   token like a password for its lifetime (`exp`).
+- **Every network leg is bounded.** The toml fetch, the challenge GET,
+  and the token POST each time out after 10 seconds by default
+  (`DEFAULT_NETWORK_TIMEOUT_MS`), overridable through one `timeoutMs`
+  dependency on `authenticate` and `fetchWebAuthConfig`. A timed-out leg
+  surfaces as `WebAuthRequestFailedError` with `timedOut: true`,
+  `httpStatus: 0`, and `phase` naming the leg (`"toml"`, `"challenge"`, or
+  `"token"`), never as a raw AbortError. Rationale: a USSD session is
+  gateway-bounded at 120 to 180 seconds, so a hung anchor must become a
+  fast typed failure the session layer can render.
 - **Clock skew.** The timebounds check tolerates 300 seconds of skew each
   side, matching the SDK's own reader. Hosts with worse clock drift will
   see `timebounds_expired` refusals; fix the clock, not the check.

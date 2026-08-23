@@ -19,6 +19,7 @@
  */
 
 import { TokenScopeError, WebAuthRequestFailedError } from '../errors.js';
+import { DEFAULT_NETWORK_TIMEOUT_MS, fetchWithTimeout, isTimeoutError } from './timeout.js';
 import type { WebAuthConfig } from './toml.js';
 
 /**
@@ -53,23 +54,47 @@ export interface SubmitChallengeParams {
   signedChallengeXdr: string;
   /** Injectable transport, defaults to global fetch. */
   fetchFn?: typeof fetch;
+  /** Network timeout for this leg, default {@link DEFAULT_NETWORK_TIMEOUT_MS}. */
+  timeoutMs?: number;
 }
 
 /**
  * POST the signed challenge back to the anchor and return the JWT.
  *
  * @throws WebAuthRequestFailedError on any non-200 answer (carrying the
- *   anchor's `error` string verbatim when present) or an unusable body.
+ *   anchor's `error` string verbatim when present) or an unusable body, or
+ *   with `timedOut: true` and `httpStatus: 0` when the leg exceeds its
+ *   timeout.
  */
 export async function submitChallenge(params: SubmitChallengeParams): Promise<string> {
   const { anchor, signedChallengeXdr } = params;
   const fetchFn = params.fetchFn ?? fetch;
+  const timeoutMs = params.timeoutMs ?? DEFAULT_NETWORK_TIMEOUT_MS;
 
-  const res = await fetchFn(anchor.webAuthEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transaction: signedChallengeXdr }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      fetchFn,
+      anchor.webAuthEndpoint,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction: signedChallengeXdr }),
+      },
+      timeoutMs,
+    );
+  } catch (err) {
+    if (isTimeoutError(err)) {
+      throw new WebAuthRequestFailedError(
+        'token',
+        0,
+        `No response from the anchor within ${timeoutMs} ms.`,
+        undefined,
+        { timedOut: true },
+      );
+    }
+    throw err;
+  }
   const body: unknown = await res.json().catch(() => undefined);
 
   if (res.status !== 200) {

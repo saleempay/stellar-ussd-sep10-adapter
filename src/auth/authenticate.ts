@@ -22,6 +22,13 @@ export interface AuthenticateDeps {
   anchor: WebAuthConfig;
   /** Injectable transport for both HTTP legs, defaults to global fetch. */
   fetchFn?: typeof fetch;
+  /**
+   * Network timeout applied to each HTTP leg (challenge GET, token POST),
+   * default 10 seconds. Pass the same value to `fetchWebAuthConfig` for
+   * the toml leg. A USSD session is gateway-bounded at 120 to 180 seconds,
+   * so a hung anchor must become a fast typed failure.
+   */
+  timeoutMs?: number;
 }
 
 /** What {@link authenticate} returns. The adapter keeps no copy of either. */
@@ -64,13 +71,13 @@ export async function authenticate(
   deps: AuthenticateDeps,
   accountId: string,
 ): Promise<AuthenticationResult> {
-  const { signer, networkPassphrase, anchor, fetchFn } = deps;
+  const { signer, networkPassphrase, anchor, fetchFn, timeoutMs } = deps;
 
   if (!(await signer.canSignFor(accountId))) {
     throw new SignerUnavailableError(accountId);
   }
 
-  const challengeXdr = await requestChallenge({ anchor, accountId, networkPassphrase, fetchFn });
+  const challengeXdr = await requestChallenge({ anchor, accountId, networkPassphrase, fetchFn, timeoutMs });
 
   verifyChallenge({ challengeXdr, expectedAccountId: accountId, anchor, networkPassphrase });
 
@@ -79,7 +86,7 @@ export async function authenticate(
     accountId,
   });
 
-  const token = await submitChallenge({ anchor, signedChallengeXdr, fetchFn });
+  const token = await submitChallenge({ anchor, signedChallengeXdr, fetchFn, timeoutMs });
   const claims = decodeJwtClaims(token);
   assertTokenScope(claims, accountId);
 

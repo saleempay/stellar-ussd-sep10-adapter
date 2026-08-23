@@ -12,6 +12,7 @@ import {
   ConfigError,
   WebAuthRequestFailedError,
 } from '../errors.js';
+import { DEFAULT_NETWORK_TIMEOUT_MS, fetchWithTimeout, isTimeoutError } from './timeout.js';
 import type { WebAuthConfig } from './toml.js';
 
 /** Parameters for {@link requestChallenge}. */
@@ -24,6 +25,8 @@ export interface RequestChallengeParams {
   networkPassphrase: string;
   /** Injectable transport, defaults to global fetch. */
   fetchFn?: typeof fetch;
+  /** Network timeout for this leg, default {@link DEFAULT_NETWORK_TIMEOUT_MS}. */
+  timeoutMs?: number;
 }
 
 /**
@@ -37,13 +40,16 @@ export interface RequestChallengeParams {
  * @returns The challenge transaction, base64 XDR, still unverified.
  * @throws ConfigError when the endpoint is not https (defense in depth; the
  *   toml module already refuses such a config).
- * @throws WebAuthRequestFailedError on a non-200 answer or an unusable body.
+ * @throws WebAuthRequestFailedError on a non-200 answer or an unusable body,
+ *   or with `timedOut: true` and `httpStatus: 0` when the leg exceeds its
+ *   timeout.
  * @throws ChallengeValidationError (`network_passphrase_mismatch`) when the
  *   anchor declares a passphrase that is not the configured one.
  */
 export async function requestChallenge(params: RequestChallengeParams): Promise<string> {
   const { anchor, accountId, networkPassphrase } = params;
   const fetchFn = params.fetchFn ?? fetch;
+  const timeoutMs = params.timeoutMs ?? DEFAULT_NETWORK_TIMEOUT_MS;
 
   if (!anchor.webAuthEndpoint.startsWith('https://')) {
     throw new ConfigError(
@@ -55,7 +61,21 @@ export async function requestChallenge(params: RequestChallengeParams): Promise<
   url.searchParams.set('account', accountId);
   url.searchParams.set('home_domain', anchor.homeDomain);
 
-  const res = await fetchFn(url.toString(), { method: 'GET' });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(fetchFn, url.toString(), { method: 'GET' }, timeoutMs);
+  } catch (err) {
+    if (isTimeoutError(err)) {
+      throw new WebAuthRequestFailedError(
+        'challenge',
+        0,
+        `No response from the anchor within ${timeoutMs} ms.`,
+        undefined,
+        { timedOut: true },
+      );
+    }
+    throw err;
+  }
   const body = await readJson(res);
 
   if (res.status !== 200) {
