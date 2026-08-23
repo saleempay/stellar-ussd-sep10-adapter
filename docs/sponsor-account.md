@@ -45,9 +45,8 @@ from the API):
 - **Required reviewers: `rasoliman` and `ismo90`.** A run in the
   environment waits for reviewer approval before it receives the secret,
   so the two-person rule is enforced by GitHub, not stated in a document.
-- Not changed: GitHub's default `can_admins_bypass` remains true, so a
-  repository administrator can bypass the reviewer gate. Turning that off
-  is a separate owner decision.
+- **Administrator bypass disabled** (`can_admins_bypass: false`), so the
+  reviewer gate binds repository administrators too.
 
 No copy exists in any working tree, `.env`, chat log, or scratch directory.
 The script that created it passed the value over stdin, not argv.
