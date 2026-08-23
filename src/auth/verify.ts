@@ -36,6 +36,20 @@ import type { WebAuthConfig } from './toml.js';
 /** Clock-skew tolerance, matching the SDK's `readChallengeTx`. */
 export const TIMEBOUNDS_GRACE_SECONDS = 300;
 
+/**
+ * The widest challenge window (maxTime minus minTime) the adapter will
+ * sign: 20 minutes.
+ *
+ * Rationale: a signed challenge is a bearer artifact for its whole window,
+ * so an anchor issuing a very long window would get a correspondingly
+ * long-lived credential signed through the seam. Real anchors issue
+ * windows around 15 minutes or below (SEP-10 itself recommends 900
+ * seconds), so 1200 seconds admits every legitimate anchor with headroom
+ * and refuses the rest. Paired with the refusal of a zero lower bound, it
+ * bounds the exposure of every signature the adapter produces.
+ */
+export const MAX_CHALLENGE_WINDOW_SECONDS = 1200;
+
 /** Parameters for {@link verifyChallenge}. */
 export interface VerifyChallengeParams {
   /** The challenge transaction, base64 XDR, as received from the anchor. */
@@ -128,8 +142,8 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
     );
   }
 
-  // 8 and 9. Timebounds: present, finite, and current (with the documented
-  //          grace on both sides).
+  // 8 and 9. Timebounds: present, finite, bounded below, no wider than the
+  //          ceiling, and current (with the documented grace on both sides).
   const bounds = tx.timeBounds;
   if (!bounds || Number.parseInt(bounds.maxTime, 10) === 0) {
     throw new ChallengeValidationError(
@@ -139,6 +153,19 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
   }
   const minTime = Number.parseInt(bounds.minTime, 10);
   const maxTime = Number.parseInt(bounds.maxTime, 10);
+  if (minTime === 0) {
+    throw new ChallengeValidationError(
+      'timebounds_unbounded',
+      'the challenge has no lower time bound (minTime is 0), so its lifetime is unbounded below.',
+    );
+  }
+  if (maxTime - minTime > MAX_CHALLENGE_WINDOW_SECONDS) {
+    throw new ChallengeValidationError(
+      'timebounds_window_too_wide',
+      `the challenge window is ${maxTime - minTime}s wide, the ceiling is ` +
+        `${MAX_CHALLENGE_WINDOW_SECONDS}s (a signed challenge is a bearer artifact for its whole window).`,
+    );
+  }
   if (now < minTime - TIMEBOUNDS_GRACE_SECONDS || now > maxTime + TIMEBOUNDS_GRACE_SECONDS) {
     throw new ChallengeValidationError(
       'timebounds_expired',

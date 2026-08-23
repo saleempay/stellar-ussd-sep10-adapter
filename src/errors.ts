@@ -184,6 +184,8 @@ export type ChallengeFailedCheck =
   | 'home_domain_mismatch'
   | 'timebounds_missing'
   | 'timebounds_expired'
+  | 'timebounds_unbounded'
+  | 'timebounds_window_too_wide'
   | 'nonce_invalid'
   | 'extra_op_invalid'
   | 'web_auth_domain_mismatch'

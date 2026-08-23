@@ -51,6 +51,7 @@ export { requestChallenge, type RequestChallengeParams } from './auth/challenge.
 export {
   verifyChallenge,
   TIMEBOUNDS_GRACE_SECONDS,
+  MAX_CHALLENGE_WINDOW_SECONDS,
   type VerifyChallengeParams,
   type VerifiedChallenge,
 } from './auth/verify.js';

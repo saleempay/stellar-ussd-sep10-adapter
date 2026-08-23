@@ -217,6 +217,8 @@ named check is explicit adapter code; the SDK's own
 | `home_domain_mismatch` | the first operation's key is not `"<home domain> auth"` for the expected home domain |
 | `timebounds_missing` | it has no finite timebounds |
 | `timebounds_expired` | the current time is outside its timebounds window (300 second grace each side, matching the SDK) |
+| `timebounds_unbounded` | its `minTime` is 0, so its lifetime has no lower bound |
+| `timebounds_window_too_wide` | its window (`maxTime` minus `minTime`) is wider than 1200 seconds; a signed challenge is a bearer artifact for its whole window, and real anchors issue about 15 minutes |
 | `nonce_invalid` | the first operation's value is not a base64 encoding of 48 random bytes |
 | `extra_op_invalid` | a subsequent operation is not `manage_data`, or is not sourced by the server account |
 | `web_auth_domain_mismatch` | a `web_auth_domain` operation does not name the auth endpoint's host |
@@ -256,6 +258,12 @@ message text.
 - **Clock skew.** The timebounds check tolerates 300 seconds of skew each
   side, matching the SDK's own reader. Hosts with worse clock drift will
   see `timebounds_expired` refusals; fix the clock, not the check.
+- **Challenge lifetime ceiling.** A challenge window wider than 20
+  minutes (`MAX_CHALLENGE_WINDOW_SECONDS`, 1200) or with no lower bound is
+  refused before signing, because a signed challenge is a bearer artifact
+  for its whole window. Real anchors issue about 15 minutes (SEP-10
+  recommends 900 seconds), so a refusal here means the anchor is
+  misconfigured, not the adapter.
 
 ### client_domain: a documented extension point, not implemented
 

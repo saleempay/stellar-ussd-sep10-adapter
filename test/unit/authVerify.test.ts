@@ -185,7 +185,7 @@ describe('verifyChallenge', () => {
 
   it('refuses an expired challenge: timebounds_expired', () => {
     const now = Math.floor(Date.now() / 1000);
-    const xdr = rawChallenge({ timebounds: { minTime: now - 7200, maxTime: now - 3600 } });
+    const xdr = rawChallenge({ timebounds: { minTime: now - 7200, maxTime: now - 6300 } });
     expect(failedCheckOf(xdr)).toBe('timebounds_expired');
   });
 
@@ -193,6 +193,30 @@ describe('verifyChallenge', () => {
     const xdr = goodChallenge();
     const farPast = Math.floor(Date.now() / 1000) - 3600;
     expect(failedCheckOf(xdr, clientKp.publicKey(), farPast)).toBe('timebounds_expired');
+  });
+
+  it("refuses the reviewer's probe: minTime 0 with maxTime a year out: timebounds_unbounded", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const xdr = rawChallenge({ timebounds: { minTime: 0, maxTime: now + 365 * 86400 } });
+    expect(failedCheckOf(xdr)).toBe('timebounds_unbounded');
+  });
+
+  it('accepts a 15 minute window', () => {
+    const now = Math.floor(Date.now() / 1000);
+    const xdr = rawChallenge({ timebounds: { minTime: now, maxTime: now + 900 } });
+    expect(verifyChallenge({ challengeXdr: xdr, expectedAccountId: clientKp.publicKey(), anchor, networkPassphrase: NET }).clientAccountId).toBe(clientKp.publicKey());
+  });
+
+  it('accepts a window of exactly 1200 seconds (boundary)', () => {
+    const now = Math.floor(Date.now() / 1000);
+    const xdr = rawChallenge({ timebounds: { minTime: now, maxTime: now + 1200 } });
+    expect(verifyChallenge({ challengeXdr: xdr, expectedAccountId: clientKp.publicKey(), anchor, networkPassphrase: NET }).clientAccountId).toBe(clientKp.publicKey());
+  });
+
+  it('refuses a 21 minute window: timebounds_window_too_wide', () => {
+    const now = Math.floor(Date.now() / 1000);
+    const xdr = rawChallenge({ timebounds: { minTime: now, maxTime: now + 1260 } });
+    expect(failedCheckOf(xdr)).toBe('timebounds_window_too_wide');
   });
 
   it('accepts clock skew inside the documented 300 second grace', () => {
