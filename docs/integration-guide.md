@@ -218,12 +218,13 @@ named check is explicit adapter code; the SDK's own
 | `timebounds_missing` | it has no finite timebounds |
 | `timebounds_expired` | the current time is outside its timebounds window (300 second grace each side, matching the SDK) |
 | `nonce_invalid` | the first operation's value is not a base64 encoding of 48 random bytes |
-| `extra_op_invalid` | a subsequent operation is not `manage_data`, or is not sourced by the server account (`client_domain` excepted) |
+| `extra_op_invalid` | a subsequent operation is not `manage_data`, or is not sourced by the server account |
 | `web_auth_domain_mismatch` | a `web_auth_domain` operation does not name the auth endpoint's host |
 | `server_signature_invalid` | the anchor's signature is absent or invalid under the configured network passphrase (a wrong network fails here too) |
 | `network_passphrase_mismatch` | the challenge response declared a `network_passphrase` that is not the configured one (checked before parsing) |
 | `client_account_mismatch` | it names a client account other than the one we asked to authenticate |
 | `unexpected_memo` | it carries a memo, and this adapter never requests one |
+| `unexpected_client_domain` | it carries a `client_domain` operation, and this adapter never requests one |
 | `sdk_validation` | the SDK's `WebAuth.readChallengeTx` refused it for a reason not named above (defense in depth) |
 
 Two more typed errors complete the auth taxonomy:
@@ -262,17 +263,20 @@ SEP-10 optionally lets a client application prove its own identity in
 addition to the account's, by sending `client_domain` on the challenge
 request and co-signing the challenge with the `SIGNING_KEY` published on
 that domain's stellar.toml. This adapter authenticates plainly and does
-not implement it: `requestChallenge` never sends the parameter, and a
-`client_domain` operation appearing in a challenge is tolerated by
-verification (per spec) but never co-signed by us.
+not implement it: `requestChallenge` never sends the parameter. Until the
+extension is implemented, a challenge that comes back carrying a
+`client_domain` operation is refused with `failedCheck:
+"unexpected_client_domain"`, exactly as an unsolicited memo is refused: it
+was not built for our request.
 
 Where it would plug in, for an adopter who needs wallet attribution: add
 `client_domain` to the GET in `src/auth/challenge.ts`, and in
 `src/auth/authenticate.ts` add a second `signTransaction` call, through a
 `Signer` whose backend holds the client-domain key, for the account named
-by the challenge's `client_domain` operation source. The verification
-core already recognizes the operation, and the anchor will then include a
-`client_domain` claim in the JWT.
+by the challenge's `client_domain` operation source, and replace the
+`unexpected_client_domain` refusal in `src/auth/verify.ts` with the
+protocol's own rule for that operation (any source, must be co-signed).
+The anchor will then include a `client_domain` claim in the JWT.
 
 ## Known limitations, documented for adopters, out of sprint scope
 

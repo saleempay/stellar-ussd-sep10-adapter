@@ -15,7 +15,10 @@
  * cannot perform, because only the caller knows them, run last: the
  * challenge must name the account we asked to authenticate
  * (`client_account_mismatch`) and must carry no memo, since we never request
- * one (`unexpected_memo`).
+ * one (`unexpected_memo`). For the same reason a challenge carrying any
+ * `client_domain` operation is refused (`unexpected_client_domain`): this
+ * adapter never requests client_domain (a settled ruling, enforced here in
+ * code), so such a challenge was not built for our request.
  *
  * ## Timebounds grace
  *
@@ -153,9 +156,12 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
   }
 
   // 11 and 12. Subsequent operations: all manage_data, sourced by the
-  //            server (a client_domain operation is the one exception, and
-  //            this adapter never requests one), and any web_auth_domain
-  //            operation must name the endpoint's host.
+  //            server, and any web_auth_domain operation must name the
+  //            endpoint's host. A client_domain operation (the protocol's
+  //            one allowed non-server-sourced operation) is refused
+  //            outright: this adapter never requests one, so a challenge
+  //            carrying it was not built for our request. The refusal is
+  //            symmetric with unexpected_memo below.
   for (const op of extraOps) {
     if (op.type !== 'manageData') {
       throw new ChallengeValidationError(
@@ -163,7 +169,14 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
         `subsequent operation of type ${op.type}, all must be manageData.`,
       );
     }
-    if (op.source !== anchor.signingKey && op.name !== 'client_domain') {
+    if (op.name === 'client_domain') {
+      throw new ChallengeValidationError(
+        'unexpected_client_domain',
+        `the challenge carries a client_domain operation (source ${op.source}), but this ` +
+          'adapter never requests client_domain.',
+      );
+    }
+    if (op.source !== anchor.signingKey) {
       throw new ChallengeValidationError(
         'extra_op_invalid',
         `subsequent operation ${JSON.stringify(op.name)} is not sourced by the server account.`,

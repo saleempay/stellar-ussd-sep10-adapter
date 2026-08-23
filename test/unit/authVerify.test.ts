@@ -258,6 +258,25 @@ describe('verifyChallenge', () => {
     expect(failedCheckOf(goodChallenge({ memo: '7' }))).toBe('unexpected_memo');
   });
 
+  it("refuses the reviewer's probe: a client_domain op from an arbitrary keypair: unexpected_client_domain", () => {
+    const arbitrary = Keypair.random();
+    const xdr = rawChallenge({
+      extraOps: [
+        Operation.manageData({ name: 'client_domain', value: 'wallet.example.com', source: arbitrary.publicKey() }),
+      ],
+    });
+    expect(failedCheckOf(xdr)).toBe('unexpected_client_domain');
+  });
+
+  it('refuses a client_domain op even when sourced by the server: unexpected_client_domain', () => {
+    const xdr = rawChallenge({
+      extraOps: [
+        Operation.manageData({ name: 'client_domain', value: 'wallet.example.com', source: serverKp.publicKey() }),
+      ],
+    });
+    expect(failedCheckOf(xdr)).toBe('unexpected_client_domain');
+  });
+
   it('surfaces a residual SDK refusal as sdk_validation', () => {
     // A muxed client account combined with a memo passes every explicit
     // adapter pre-check (the memo check runs after the SDK gate) but the

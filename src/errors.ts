@@ -191,6 +191,7 @@ export type ChallengeFailedCheck =
   | 'network_passphrase_mismatch'
   | 'client_account_mismatch'
   | 'unexpected_memo'
+  | 'unexpected_client_domain'
   | 'sdk_validation';
 
 /**
