@@ -68,15 +68,18 @@ This builds the library, then `scripts/recover-sponsor.mjs`:
 4. reads every claim back from Horizon and writes the capture to
    `test-output/sponsor-recovery.json` (gitignored) with stellar.expert links.
 
-Flags:
+Flags (npm consumes flags placed directly after the script name, so pass
+them after a `--` separator: `npm run sponsor:recover -- <flags>`):
 
 | Flag | Effect |
 |---|---|
 | `--print-env` | print the two `SPONSOR_*` lines for a local `.env` (never commit `.env`) |
 | `--github-env <name>` | store the secret and public key in the named GitHub environment on this repository via `gh` (requires repo admin) |
 
-After a reset the workflow is: run `npm run sponsor:recover --github-env
-testnet` from a machine with `gh` repo admin, then re-author the affected
+After a reset the workflow is: run `npm run sponsor:recover -- --github-env
+testnet` from a machine with `gh` repo admin (the `--` separator is
+required; without it npm swallows `--github-env` as its own option and the
+GitHub storage step is silently skipped), then re-author the affected
 sections of `EVIDENCE.md` from `test-output/sponsor-recovery.json`. If the
 key is still known (it was not lost in the reset, only the on-chain state
 was), the same command with `SPONSOR_SECRET_KEY` set re-funds the same
