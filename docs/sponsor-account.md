@@ -36,6 +36,19 @@ secret on this repository:
 
 GitHub secrets are write-only. Nobody can read the value back through the
 UI or API; only a workflow running in the `testnet` environment receives it.
+The environment itself is gated (configured 20 August 2026 and read back
+from the API):
+
+- **Deployment branch policy: `main` only.** A workflow declaring
+  `environment: testnet` on any other branch cannot run in it, so a
+  workflow committed to a feature branch cannot reach the secret.
+- **Required reviewers: `rasoliman` and `ismo90`.** A run in the
+  environment waits for reviewer approval before it receives the secret,
+  so the two-person rule is enforced by GitHub, not stated in a document.
+- Not changed: GitHub's default `can_admins_bypass` remains true, so a
+  repository administrator can bypass the reviewer gate. Turning that off
+  is a separate owner decision.
+
 No copy exists in any working tree, `.env`, chat log, or scratch directory.
 The script that created it passed the value over stdin, not argv.
 
