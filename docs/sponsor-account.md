@@ -39,6 +39,10 @@ UI or API; only a workflow running in the `testnet` environment receives it.
 No copy exists in any working tree, `.env`, chat log, or scratch directory.
 The script that created it passed the value over stdin, not argv.
 
+No workflow currently reads this secret: the repository has no
+`.github/workflows` directory yet. It is stored for forthcoming CI use and
+until then has a writer and no reader.
+
 **Target:** the sponsor becomes a DFNS-managed wallet in the DFNS dev org,
 so no raw secret exists anywhere and the MPC signer co-signs through the
 `Signer` interface. This is the architecture of record for every Saleem
