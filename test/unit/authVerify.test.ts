@@ -179,6 +179,23 @@ describe('verifyChallenge', () => {
     );
   });
 
+  it("accepts the reviewer's mixed-case probe: 'TestAnchor.Stellar.org auth' against a lowercase config", () => {
+    const xdr = goodChallenge({ homeDomain: 'TestAnchor.Stellar.org', webAuthDomain: 'TestAnchor.Stellar.org' });
+    const result = verifyChallenge({ challengeXdr: xdr, expectedAccountId: clientKp.publicKey(), anchor, networkPassphrase: NET });
+    expect(result.clientAccountId).toBe(clientKp.publicKey());
+    expect(result.matchedHomeDomain).toBe(anchor.homeDomain);
+  });
+
+  it('accepts a mixed-case configured home domain against a lowercase challenge', () => {
+    const upper = { ...anchor, homeDomain: 'TESTANCHOR.STELLAR.ORG', webAuthDomain: 'TESTANCHOR.STELLAR.ORG' };
+    const result = verifyChallenge({ challengeXdr: goodChallenge(), expectedAccountId: clientKp.publicKey(), anchor: upper, networkPassphrase: NET });
+    expect(result.matchedHomeDomain).toBe('TESTANCHOR.STELLAR.ORG');
+  });
+
+  it('still refuses a genuinely wrong domain regardless of case: home_domain_mismatch', () => {
+    expect(failedCheckOf(goodChallenge({ homeDomain: 'EVIL.EXAMPLE.COM' }))).toBe('home_domain_mismatch');
+  });
+
   it('refuses infinite timebounds: timebounds_missing', () => {
     expect(failedCheckOf(rawChallenge({ timebounds: 'infinite' }))).toBe('timebounds_missing');
   });

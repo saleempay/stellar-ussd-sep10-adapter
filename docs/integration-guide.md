@@ -214,14 +214,14 @@ named check is explicit adapter code; the SDK's own
 | `no_operations` | it contains no operations |
 | `first_op_source_missing` | the first operation names no source, so there is no client account |
 | `first_op_not_manage_data` | the first operation is not `manage_data` |
-| `home_domain_mismatch` | the first operation's key is not `"<home domain> auth"` for the expected home domain |
+| `home_domain_mismatch` | the first operation's key is not `"<home domain> auth"` for the expected home domain (compared case-insensitively, as domain names are) |
 | `timebounds_missing` | it has no finite timebounds |
 | `timebounds_expired` | the current time is outside its timebounds window (300 second grace each side, matching the SDK) |
 | `timebounds_unbounded` | its `minTime` is 0, so its lifetime has no lower bound |
 | `timebounds_window_too_wide` | its window (`maxTime` minus `minTime`) is wider than 1200 seconds; a signed challenge is a bearer artifact for its whole window, and real anchors issue about 15 minutes |
 | `nonce_invalid` | the first operation's value is not a base64 encoding of 48 random bytes |
 | `extra_op_invalid` | a subsequent operation is not `manage_data`, or is not sourced by the server account |
-| `web_auth_domain_mismatch` | a `web_auth_domain` operation does not name the auth endpoint's host |
+| `web_auth_domain_mismatch` | a `web_auth_domain` operation does not name the auth endpoint's host (compared case-insensitively) |
 | `server_signature_invalid` | the anchor's signature is absent or invalid under the configured network passphrase (a wrong network fails here too) |
 | `network_passphrase_mismatch` | the challenge response declared a `network_passphrase` that is not the configured one (checked before parsing) |
 | `client_account_mismatch` | it names a client account other than the one we asked to authenticate |

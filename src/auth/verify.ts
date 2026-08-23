@@ -134,8 +134,10 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
       `the first operation is ${firstOp.type}, must be manageData.`,
     );
   }
+  // Domain names are case-insensitive, so both sides are lowercased before
+  // comparison; the returned matchedHomeDomain keeps the configured casing.
   const expectedName = `${anchor.homeDomain} auth`;
-  if (firstOp.name !== expectedName) {
+  if (firstOp.name.toLowerCase() !== expectedName.toLowerCase()) {
     throw new ChallengeValidationError(
       'home_domain_mismatch',
       `the first operation is named ${JSON.stringify(firstOp.name)}, expected ${JSON.stringify(expectedName)}.`,
@@ -211,7 +213,7 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
     }
     if (op.name === 'web_auth_domain') {
       const value = op.value?.toString();
-      if (value !== anchor.webAuthDomain) {
+      if (value?.toLowerCase() !== anchor.webAuthDomain.toLowerCase()) {
         throw new ChallengeValidationError(
           'web_auth_domain_mismatch',
           `web_auth_domain is ${JSON.stringify(value)}, expected ${JSON.stringify(anchor.webAuthDomain)}.`,
@@ -236,13 +238,24 @@ export function verifyChallenge(params: VerifyChallengeParams): VerifiedChalleng
   let matchedHomeDomain: string;
   let memo: string | null;
   try {
-    ({ clientAccountID, matchedHomeDomain, memo } = WebAuth.readChallengeTx(
+    // The SDK reader compares domains case-sensitively, so it is handed
+    // the casing the challenge actually used (already matched above, case
+    // insensitively, against the configured values).
+    const challengeHomeDomain = firstOp.name.slice(0, -' auth'.length);
+    let challengeWebAuthDomain = anchor.webAuthDomain;
+    for (const op of extraOps) {
+      if (op.type === 'manageData' && op.name === 'web_auth_domain' && op.value !== undefined) {
+        challengeWebAuthDomain = op.value.toString();
+      }
+    }
+    ({ clientAccountID, memo } = WebAuth.readChallengeTx(
       challengeXdr,
       anchor.signingKey,
       networkPassphrase,
-      anchor.homeDomain,
-      anchor.webAuthDomain,
+      challengeHomeDomain,
+      challengeWebAuthDomain,
     ));
+    matchedHomeDomain = anchor.homeDomain;
   } catch (err) {
     throw new ChallengeValidationError(
       'sdk_validation',
