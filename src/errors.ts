@@ -292,6 +292,77 @@ interface HorizonResultCodes {
 }
 
 /**
+ * The USSD session named by the gateway callback does not exist in the
+ * session store or has passed its time-to-live. The session layer renders
+ * this as the timeout screen; the user dials again to start over.
+ */
+export class SessionExpiredError extends AdapterError {
+  readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super('SESSION_EXPIRED', `USSD session ${sessionId} is unknown or expired.`);
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * The supplied PIN did not verify against the stored hash. Carries the
+ * remaining attempt count so the session layer can render it. Never carries
+ * any PIN digits, in either direction.
+ */
+export class PinRejectedError extends AdapterError {
+  /** Attempts remaining before lockout. */
+  readonly attemptsLeft: number;
+
+  constructor(attemptsLeft: number) {
+    super('PIN_REJECTED', `PIN verification failed. Attempts left: ${attemptsLeft}.`);
+    this.attemptsLeft = attemptsLeft;
+  }
+}
+
+/**
+ * The MSISDN is locked out after too many consecutive failed PIN attempts.
+ * Raised before any hash computation, so a locked entry costs nothing.
+ */
+export class PinLockedError extends AdapterError {
+  /** Unix milliseconds when the lockout ends. */
+  readonly lockedUntil: number;
+
+  constructor(lockedUntil: number) {
+    super('PIN_LOCKED', 'Too many failed PIN attempts. Locked out temporarily.');
+    this.lockedUntil = lockedUntil;
+  }
+}
+
+/**
+ * A callback attempted to trigger signing in a session whose single signing
+ * claim is already spent. This is the replay-rejection error: the session
+ * layer renders it without calling the signer or the anchor.
+ */
+export class SigningAlreadyClaimedError extends AdapterError {
+  readonly sessionId: string;
+
+  constructor(sessionId: string) {
+    super(
+      'SIGNING_ALREADY_CLAIMED',
+      `Session ${sessionId} has already used its one signing claim.`,
+    );
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * A gateway callback could not be parsed into a session step (missing
+ * required field, wrong content type). The HTTP handler answers a plain
+ * error status; the gateway then ends the session on its side.
+ */
+export class GatewayRequestError extends AdapterError {
+  constructor(message: string) {
+    super('GATEWAY_REQUEST_INVALID', message);
+  }
+}
+
+/**
  * Translate a failed Horizon submission into a typed error.
  *
  * @param err - The error thrown by the Horizon client on submission.
