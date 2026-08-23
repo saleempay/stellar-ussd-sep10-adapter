@@ -127,3 +127,40 @@ describe('assertTokenScope', () => {
     expect(() => assertTokenScope({ sub: ACCOUNT }, ACCOUNT, 5000)).not.toThrow();
   });
 });
+
+describe('assertTokenScope refuses present-but-unusable claims', () => {
+  it("refuses the reviewer's probe: exp as the string \"1\" with a matching sub", () => {
+    expect(() => assertTokenScope({ sub: ACCOUNT, exp: '1' } as never, ACCOUNT, 1_000_000)).toThrow(
+      TokenScopeError,
+    );
+    expect(() => assertTokenScope({ sub: ACCOUNT, exp: '1' } as never, ACCOUNT, 1_000_000)).toThrow(
+      /malformed/,
+    );
+  });
+
+  it('refuses exp as NaN, Infinity, null, or an object, distinguishably from expiry', () => {
+    for (const exp of [Number.NaN, Number.POSITIVE_INFINITY, null, { at: 1 }]) {
+      const err = (() => {
+        try {
+          assertTokenScope({ sub: ACCOUNT, exp } as never, ACCOUNT, 500);
+        } catch (e) {
+          return e as TokenScopeError;
+        }
+        throw new Error(`expected refusal for exp=${String(exp)}`);
+      })();
+      expect(err).toBeInstanceOf(TokenScopeError);
+      expect(err.message).toMatch(/malformed/);
+      expect(err.message).not.toMatch(/expired/);
+    }
+  });
+
+  it('refuses a non-string sub instead of bypassing the subject match', () => {
+    for (const sub of [42, null, { id: ACCOUNT }, ['x']]) {
+      expect(() => assertTokenScope({ sub, exp: 1000 } as never, ACCOUNT, 500)).toThrow(/malformed/);
+    }
+  });
+
+  it('refuses an empty-string sub', () => {
+    expect(() => assertTokenScope({ sub: '' }, ACCOUNT, 500)).toThrow(TokenScopeError);
+  });
+});

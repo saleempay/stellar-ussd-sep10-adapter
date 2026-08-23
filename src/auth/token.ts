@@ -134,8 +134,15 @@ export function decodeJwtClaims(token: string): Sep10JwtClaims {
  * The `sub` forms are handled per SEP-10: a `G...:memo` subject matches on
  * its account part; a plain subject must match exactly.
  *
- * @throws TokenScopeError on a missing or mismatched `sub`, or an expired
- *   token.
+ * Present-but-unusable claims refuse, they never silently pass: a `sub`
+ * that is not a string, or an `exp` that is present but not a finite
+ * number (a string, NaN, Infinity, null, an object), throws with a
+ * distinguishable reason so callers can tell malformed from expired. Only
+ * an `exp` that is entirely absent is accepted (expiry is then enforced
+ * by the anchor alone).
+ *
+ * @throws TokenScopeError on a missing, malformed, or mismatched `sub`, on
+ *   a malformed `exp`, or on an expired token.
  */
 export function assertTokenScope(
   claims: Sep10JwtClaims,
@@ -144,8 +151,14 @@ export function assertTokenScope(
 ): void {
   const now = nowSeconds ?? Math.floor(Date.now() / 1000);
   const sub = claims.sub;
-  if (typeof sub !== 'string' || sub.length === 0) {
+  if (sub === undefined) {
     throw new TokenScopeError(accountId, 'The token has no `sub` claim to scope it to an account.');
+  }
+  if (typeof sub !== 'string' || sub.length === 0) {
+    throw new TokenScopeError(
+      accountId,
+      `The token's \`sub\` claim is malformed (expected a non-empty string, got ${describeClaim(sub)}).`,
+    );
   }
   const subAccount = sub.includes(':') ? sub.slice(0, sub.indexOf(':')) : sub;
   if (subAccount !== accountId) {
@@ -155,11 +168,29 @@ export function assertTokenScope(
       sub,
     );
   }
-  if (typeof claims.exp === 'number' && claims.exp <= now) {
-    throw new TokenScopeError(
-      accountId,
-      `The token expired at ${claims.exp} (now ${now}). Re-authenticate.`,
-      sub,
-    );
+  const exp = claims.exp;
+  if (exp !== undefined) {
+    if (typeof exp !== 'number' || !Number.isFinite(exp)) {
+      throw new TokenScopeError(
+        accountId,
+        `The token's \`exp\` claim is malformed (expected a finite number of unix seconds, got ${describeClaim(exp)}).`,
+        sub,
+      );
+    }
+    if (exp <= now) {
+      throw new TokenScopeError(
+        accountId,
+        `The token expired at ${exp} (now ${now}). Re-authenticate.`,
+        sub,
+      );
+    }
   }
+}
+
+/** A short, safe description of a malformed claim value for error text. */
+function describeClaim(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'number') return Number.isNaN(value) ? 'NaN' : String(value);
+  if (typeof value === 'string') return `a string ${JSON.stringify(value)}`;
+  return `a value of type ${typeof value}`;
 }
