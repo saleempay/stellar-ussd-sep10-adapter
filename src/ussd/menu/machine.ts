@@ -64,6 +64,16 @@ import { SCREENS } from './screens.js';
 export interface JourneySeam {
   /** Store-only MSISDN lookup. Never touches the network. */
   lookupAccount(msisdn: string): Promise<string | undefined>;
+  /**
+   * Trustline preflight for accounts that were NOT created this session
+   * (a created account carries its trustline by construction). Runs in
+   * the welcome callback, the only network-free callback on the returning
+   * user path, so the check gets its own budget instead of adding a
+   * fourth leg to the final callback.
+   *
+   * @throws TrustlineMissingError when the trustline is absent.
+   */
+  checkTrustline(accountId: string): Promise<void>;
   /** Sponsored on-chain account creation for an unmapped MSISDN. */
   createAccount(msisdn: string): Promise<{ accountId: string; creationTxHash?: string }>;
   /**
@@ -179,6 +189,21 @@ async function transition(
     case 'welcome': {
       if (input === '1') {
         session.accountId = await deps.journey.lookupAccount(session.msisdn);
+        if (session.accountId !== undefined) {
+          // Returning user: trustline preflight on this callback's budget
+          // (SOW error handling for a missing trustline).
+          try {
+            await deps.journey.checkTrustline(session.accountId);
+          } catch (err) {
+            if (err instanceof TrustlineMissingError) {
+              log(`session=${session.sessionId} event=noTrustline`);
+              return SCREENS.endNoTrustline();
+            }
+            const code = (err as { code?: string })?.code ?? 'unknown';
+            log(`session=${session.sessionId} event=trustlineCheckFailed code=${code}`);
+            return SCREENS.endServiceDown();
+          }
+        }
         if (await hasPin({ store: deps.pins }, session.msisdn)) {
           session.state = 'pinEnter';
           return SCREENS.pinEnter();
@@ -341,5 +366,5 @@ function mapJourneyError(
   }
   const code = (err as { code?: string })?.code ?? 'unknown';
   log(`session=${sessionId} event=${phase}Failed code=${code}`);
-  return phase === 'create' ? SCREENS.endAccountFailed() : SCREENS.endAnchorDown();
+  return phase === 'create' ? SCREENS.endAccountFailed() : SCREENS.endServiceDown();
 }

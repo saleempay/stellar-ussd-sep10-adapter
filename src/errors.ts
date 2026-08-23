@@ -352,6 +352,32 @@ export class SigningAlreadyClaimedError extends AdapterError {
 }
 
 /**
+ * An authenticated anchor operation (for example the SEP-6 deposit
+ * initiation completing the USSD journey) failed: non-2xx response,
+ * malformed response body, or timeout. Distinct from
+ * {@link WebAuthRequestFailedError}, whose phases cover only the SEP-10
+ * exchange itself.
+ */
+export class AnchorOperationFailedError extends AdapterError {
+  /** Which operation failed. Currently only `deposit`. */
+  readonly operation: string;
+  /** HTTP status of the anchor's response; 0 when no response arrived. */
+  readonly httpStatus: number;
+  /** True when the leg exceeded its timeout. */
+  readonly timedOut: boolean;
+
+  constructor(operation: string, httpStatus: number, detail: string, timedOut: boolean) {
+    super(
+      'ANCHOR_OPERATION_FAILED',
+      `Anchor ${operation} failed (HTTP ${httpStatus}${timedOut ? ', timed out' : ''}): ${detail}`,
+    );
+    this.operation = operation;
+    this.httpStatus = httpStatus;
+    this.timedOut = timedOut;
+  }
+}
+
+/**
  * A gateway callback could not be parsed into a session step (missing
  * required field, wrong content type). The HTTP handler answers a plain
  * error status; the gateway then ends the session on its side.

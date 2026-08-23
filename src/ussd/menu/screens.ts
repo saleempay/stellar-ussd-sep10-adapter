@@ -162,6 +162,14 @@ export const SCREENS = {
     };
   },
 
+  endServiceDown(): Screen {
+    return {
+      kind: 'end',
+      hop: 'serviceDown',
+      text: 'Service temporarily unavailable. Try again later',
+    };
+  },
+
   endLocked(): Screen {
     return {
       kind: 'end',
@@ -206,6 +214,7 @@ export function allScreensAtMaxLength(): Screen[] {
     SCREENS.endAnchorDown(),
     SCREENS.endSignerDown(),
     SCREENS.endAccountFailed(),
+    SCREENS.endServiceDown(),
     SCREENS.endLocked(),
     SCREENS.endReplay(),
     SCREENS.endBusy(),

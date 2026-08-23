@@ -22,18 +22,25 @@ const T0 = 1_000_000;
 interface StubJourney extends JourneySeam {
   createCalls: number;
   authCalls: number;
+  trustlineChecks: number;
   mapped: Map<string, string>;
   failAuthWith?: unknown;
   failCreateWith?: unknown;
+  failTrustlineWith?: unknown;
 }
 
 function stubJourney(prefilled?: string): StubJourney {
   const journey: StubJourney = {
     createCalls: 0,
     authCalls: 0,
+    trustlineChecks: 0,
     mapped: new Map(prefilled ? [[MSISDN, prefilled]] : []),
     async lookupAccount(msisdn) {
       return journey.mapped.get(msisdn);
+    },
+    async checkTrustline() {
+      journey.trustlineChecks += 1;
+      if (journey.failTrustlineWith !== undefined) throw journey.failTrustlineWith;
     },
     async createAccount(msisdn) {
       journey.createCalls += 1;
@@ -299,6 +306,36 @@ describe('menu machine: replay and duplicates', () => {
     const texts = [a.text, b.text].sort();
     expect(h.journey.authCalls).toBe(1);
     expect(texts.filter((t) => t.includes('Deposit started'))).toHaveLength(1);
+  });
+});
+
+describe('menu machine: trustline preflight (returning user)', () => {
+  it('missing trustline ends the session on the welcome callback', async () => {
+    const h = harness({ prefilledAccount: ACCOUNT });
+    await establishPin({ store: h.pins }, MSISDN, PIN);
+    h.journey.failTrustlineWith = new TrustlineMissingError(ACCOUNT, 'SRT', ACCOUNT);
+    await h.send([]);
+    const screen = await h.send(['1']);
+    expect(screen.kind).toBe('end');
+    expect(screen.text).toContain('cannot hold this asset yet');
+    expect(h.journey.authCalls).toBe(0);
+  });
+
+  it('a non-trustline preflight failure maps to the service down screen', async () => {
+    const h = harness({ prefilledAccount: ACCOUNT });
+    await establishPin({ store: h.pins }, MSISDN, PIN);
+    h.journey.failTrustlineWith = new Error('horizon unreachable');
+    await h.send([]);
+    const screen = await h.send(['1']);
+    expect(screen.kind).toBe('end');
+    expect(screen.text).toContain('Service temporarily unavailable');
+  });
+
+  it('new users skip the preflight (their account is created with the trustline)', async () => {
+    const h = harness();
+    await h.send([]);
+    await h.send(['1']);
+    expect(h.journey.trustlineChecks).toBe(0);
   });
 });
 

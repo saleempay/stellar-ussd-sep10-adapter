@@ -69,6 +69,8 @@ export {
   type AuthenticationResult,
 } from './auth/authenticate.js';
 
+export * from './ussd/index.js';
+
 export { loadConfig, TESTNET_DEFAULTS, type AdapterConfig } from './config/index.js';
 export {
   AdapterError,
@@ -82,6 +84,12 @@ export {
   ChallengeValidationError,
   WebAuthRequestFailedError,
   TokenScopeError,
+  SessionExpiredError,
+  PinRejectedError,
+  PinLockedError,
+  SigningAlreadyClaimedError,
+  GatewayRequestError,
+  AnchorOperationFailedError,
   type ChallengeFailedCheck,
   decodeSubmissionError,
   isHorizonNotFound,
