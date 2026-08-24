@@ -51,7 +51,13 @@ import {
 import type { Sep10JwtClaims } from '../../auth/token.js';
 import type { GatewayStep, Screen } from '../gateway/types.js';
 import { inferE164, type MsisdnInferenceConfig } from '../msisdn.js';
-import { establishPin, hasPin, isWellFormedPin, verifyPinAttempt } from '../pin/policy.js';
+import {
+  establishPin,
+  hasPin,
+  isWeakPin,
+  isWellFormedPin,
+  verifyPinAttempt,
+} from '../pin/policy.js';
 import type { PinStore } from '../pin/types.js';
 import type { MenuState, SessionStore, UssdSession } from '../session/types.js';
 import { SCREENS } from './screens.js';
@@ -220,6 +226,13 @@ async function transition(
     case 'pinSetup1': {
       if (!isWellFormedPin(input)) {
         return SCREENS.pinSetupBadFormat();
+      }
+      // Weak-PIN rejection at CREATION only (never at verification, where
+      // it would leak which pattern a stored PIN matches). The screen names
+      // no pattern and no digit; the log records the state name only.
+      if (isWeakPin(input)) {
+        log(`session=${session.sessionId} event=pinSetupWeakRejected`);
+        return SCREENS.pinSetupWeak();
       }
       session.state = 'pinSetup2';
       return SCREENS.pinSetup2();

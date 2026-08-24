@@ -416,3 +416,48 @@ describe('menu machine: no plaintext PIN anywhere', () => {
     expect(session!.maskedHistory).toEqual(['1', '####', '####', '####', '####', '1', '####', '####']);
   });
 });
+
+describe('menu machine: weak PIN rejection at setup (F4)', () => {
+  it.each(['1234', '0000', '1111', '2345'])(
+    'rejects the weak setup PIN %s with generic wording and no leaked digit',
+    async (weak) => {
+      const h = harness();
+      await h.send([]);
+      await h.send(['1']);
+      const screen = await h.send(['1', weak]);
+      expect(screen.kind).toBe('con');
+      expect(screen.text).toContain('too easy to guess');
+      // Information-leak guard: the rejection names no attempted digit and
+      // no pattern.
+      for (const digit of new Set(weak.split(''))) {
+        expect(screen.text).not.toContain(digit);
+      }
+    },
+  );
+
+  it('a weak PIN is not stored and setup can continue with a strong one', async () => {
+    const h = harness();
+    await h.send([]);
+    await h.send(['1']);
+    await h.send(['1', '1234']); // rejected, stays at pinSetup1
+    // No PIN record was created by the weak attempt.
+    expect(await h.pins.get(MSISDN)).toBeUndefined();
+    // A strong PIN now proceeds to confirmation.
+    expect((await h.send(['1', '1234', PIN])).text).toContain('Enter the PIN again');
+    expect((await h.send(['1', '1234', PIN, PIN])).text).toContain('1. Create your account');
+  });
+
+  it('weak-PIN rejection applies at setup only, never at verification', async () => {
+    // A returning user whose stored PIN happens to be weak still verifies:
+    // the denylist gates creation, not verification (which would leak the
+    // pattern of a stored PIN).
+    const h = harness({ prefilledAccount: ACCOUNT });
+    await establishPin({ store: h.pins }, MSISDN, '1234');
+    await h.send([]);
+    await h.send(['1']);
+    const confirm = await h.send(['1', '1234']);
+    expect(confirm.kind).toBe('end');
+    expect(confirm.text).toContain('Deposit started');
+    expect(h.journey.authCalls).toBe(1);
+  });
+});

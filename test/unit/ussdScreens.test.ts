@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAR_BUDGET,
   PREFIX_LENGTH,
+  SCREENS,
   allScreensAtMaxLength,
   shortAccount,
 } from '../../src/ussd/menu/screens.js';
@@ -40,6 +41,13 @@ describe('screen catalogue budget', () => {
         expect(screen.hop).not.toContain('|');
       }
     }
+  });
+
+  it('the weak-PIN rejection screen is digit-free (no info leak, F4)', () => {
+    // Hard rule: a weak-PIN rejection must not reveal which pattern or which
+    // digits triggered it. A digit-free screen cannot echo any attempted
+    // digit or hint at the rule.
+    expect(SCREENS.pinSetupWeak().text).not.toMatch(/[0-9]/);
   });
 
   it('shortAccount shows first and last four characters only', () => {

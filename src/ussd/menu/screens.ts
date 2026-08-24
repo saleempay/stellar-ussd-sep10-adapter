@@ -53,6 +53,17 @@ export const SCREENS = {
     };
   },
 
+  pinSetupWeak(): Screen {
+    // Generic wording only, and deliberately digit-free: it names no
+    // pattern and contains no numeral, so it cannot echo or hint at any
+    // digit of the attempted PIN or reveal which rule triggered.
+    return {
+      kind: 'con',
+      hop: 'pinSetup1',
+      text: 'That PIN is too easy to guess\nChoose a less obvious one',
+    };
+  },
+
   pinSetup2(): Screen {
     return { kind: 'con', hop: 'pinSetup2', text: 'Enter the PIN again' };
   },
@@ -198,6 +209,7 @@ export function allScreensAtMaxLength(): Screen[] {
     SCREENS.invalidChoice(SCREENS.welcome()),
     SCREENS.pinSetup1(),
     SCREENS.pinSetupBadFormat(),
+    SCREENS.pinSetupWeak(),
     SCREENS.pinSetup2(),
     SCREENS.pinSetupMismatch(),
     SCREENS.accountPrompt(),
