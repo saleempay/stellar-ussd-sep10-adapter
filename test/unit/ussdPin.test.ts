@@ -5,13 +5,19 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { PinLockedError, PinRejectedError } from '../../src/errors.js';
-import { SCRYPT_PARAMS, hashPin, verifyPin } from '../../src/ussd/pin/hash.js';
+import {
+  SCRYPT_MAX_NR,
+  SCRYPT_PARAMS,
+  hashPin,
+  verifyPin,
+} from '../../src/ussd/pin/hash.js';
 import { InMemoryPinStore } from '../../src/ussd/pin/memoryStore.js';
 import { JsonFilePinStore } from '../../src/ussd/pin/jsonFileStore.js';
 import {
   PIN_POLICY,
   establishPin,
   hasPin,
+  isWeakPin,
   isWellFormedPin,
   verifyPinAttempt,
 } from '../../src/ussd/pin/policy.js';
@@ -262,5 +268,200 @@ describe('PIN stores', () => {
     const path = join(dir, 'pins.json');
     await new JsonFilePinStore(path).put(MSISDN, { hash: 'h', failures: 0, lockedUntil: 0 });
     expect((await new JsonFilePinStore(path).get(MSISDN))?.hash).toBe('h');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F1 (blocking): the lockout counter must be atomic. These reproduce the
+// reviewer's measured probe: concurrent wrong guesses each cost a real
+// failure instead of collapsing to one, so a batch of arbitrary width no
+// longer buys unlimited guesses per lock window.
+// ---------------------------------------------------------------------------
+
+describe("F1 regression: atomic PIN lockout (reviewer's concurrency probe)", () => {
+  it('20 concurrent wrong guesses record real failures and lock the account', async () => {
+    const store = new InMemoryPinStore();
+    const now = { value: 1_000_000 };
+    const deps = { store, now: () => now.value };
+    await establishPin(deps, MSISDN, PIN_A);
+
+    // The reviewer's probe: fire 20 wrong attempts concurrently.
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () => verifyPinAttempt(deps, MSISDN, PIN_B)),
+    );
+
+    // The bug recorded exactly 1 failure and did not lock. The fix records
+    // one failure per attempt (well past the threshold) and locks.
+    const record = await store.get(MSISDN);
+    expect(record?.failures).toBeGreaterThanOrEqual(PIN_POLICY.maxAttempts);
+    expect(record?.failures).toBe(20);
+    expect(record?.lockedUntil).toBe(now.value + PIN_POLICY.lockoutMs);
+
+    // Every attempt was rejected; none authenticated.
+    expect(results.every((r) => r.status === 'rejected')).toBe(true);
+    const locked = results.filter(
+      (r) => r.status === 'rejected' && r.reason instanceof PinLockedError,
+    );
+    expect(locked.length).toBeGreaterThan(0);
+  });
+
+  it('sequential control: 3 wrong attempts lock (documents both paths)', async () => {
+    const store = new InMemoryPinStore();
+    const now = { value: 1_000_000 };
+    const deps = { store, now: () => now.value };
+    await establishPin(deps, MSISDN, PIN_A);
+    await expect(verifyPinAttempt(deps, MSISDN, PIN_B)).rejects.toBeInstanceOf(PinRejectedError);
+    await expect(verifyPinAttempt(deps, MSISDN, PIN_B)).rejects.toBeInstanceOf(PinRejectedError);
+    await expect(verifyPinAttempt(deps, MSISDN, PIN_B)).rejects.toBeInstanceOf(PinLockedError);
+    expect((await store.get(MSISDN))?.failures).toBe(PIN_POLICY.maxAttempts);
+  });
+
+  it('once locked, a concurrent batch containing the correct PIN does not authenticate', async () => {
+    const store = new InMemoryPinStore();
+    const now = { value: 1_000_000 };
+    const deps = { store, now: () => now.value };
+    await establishPin(deps, MSISDN, PIN_A);
+
+    // Lock it first.
+    await Promise.allSettled(
+      Array.from({ length: 20 }, () => verifyPinAttempt(deps, MSISDN, PIN_B)),
+    );
+    expect((await store.get(MSISDN))?.lockedUntil).toBeGreaterThan(now.value);
+
+    // Now fire a batch where one attempt carries the CORRECT PIN. The
+    // reviewer's attack relied on the correct guess authenticating inside a
+    // batch; with the lock in place, the pre-scrypt lock check refuses it.
+    const batch = [PIN_A, PIN_B, PIN_B, PIN_A, PIN_B];
+    const results = await Promise.allSettled(
+      batch.map((p) => verifyPinAttempt(deps, MSISDN, p)),
+    );
+    expect(results.every((r) => r.status === 'rejected')).toBe(true);
+    expect(
+      results.every((r) => r.status === 'rejected' && r.reason instanceof PinLockedError),
+    ).toBe(true);
+  });
+
+  it.each([
+    ['InMemoryPinStore', () => new InMemoryPinStore() as PinStore],
+  ])(
+    '%s: recordFailure is atomic under 20 concurrent calls (store-level)',
+    async (_name, make) => {
+      const store = make();
+      await store.put(MSISDN, { hash: 'h', failures: 0, lockedUntil: 0 });
+      const now = 1_000_000;
+      const outcomes = await Promise.all(
+        Array.from({ length: 20 }, () =>
+          store.recordFailure(MSISDN, now, PIN_POLICY.maxAttempts, PIN_POLICY.lockoutMs),
+        ),
+      );
+      // Every failure counted: the final record shows 20, not 1.
+      expect((await store.get(MSISDN))?.failures).toBe(20);
+      expect((await store.get(MSISDN))?.lockedUntil).toBe(now + PIN_POLICY.lockoutMs);
+      expect(outcomes.filter((o) => o.locked).length).toBeGreaterThan(0);
+    },
+  );
+
+  it('recordFailure never clears a lock set by a concurrent sibling', async () => {
+    // The subtle race: attempt A locks at the threshold; attempt B, already
+    // past its own pre-check, must count on top of the lock, not reset it.
+    const store = new InMemoryPinStore();
+    await store.put(MSISDN, { hash: 'h', failures: 0, lockedUntil: 0 });
+    const now = 1_000_000;
+    await Promise.all(
+      Array.from({ length: 10 }, () =>
+        store.recordFailure(MSISDN, now, PIN_POLICY.maxAttempts, PIN_POLICY.lockoutMs),
+      ),
+    );
+    const rec = await store.get(MSISDN);
+    expect(rec?.lockedUntil).toBe(now + PIN_POLICY.lockoutMs);
+    expect(rec?.failures).toBe(10);
+  });
+
+  it('an expired prior lock starts a fresh count on the next failure', async () => {
+    const store = new InMemoryPinStore();
+    await store.put(MSISDN, { hash: 'h', failures: PIN_POLICY.maxAttempts, lockedUntil: 500 });
+    // now is past the old lock: recordFailure resets to a fresh count of 1.
+    const outcome = await store.recordFailure(
+      MSISDN,
+      1_000_000,
+      PIN_POLICY.maxAttempts,
+      PIN_POLICY.lockoutMs,
+    );
+    expect(outcome.failures).toBe(1);
+    expect(outcome.locked).toBe(false);
+  });
+
+  it('clearFailures resets count and lock atomically, preserving the hash', async () => {
+    const store = new InMemoryPinStore();
+    await store.put(MSISDN, { hash: 'keep-me', failures: 2, lockedUntil: 999 });
+    await store.clearFailures(MSISDN);
+    const rec = await store.get(MSISDN);
+    expect(rec).toEqual({ hash: 'keep-me', failures: 0, lockedUntil: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F3 (defect): verifyPin must bound scrypt memory taken from the stored
+// record, so a record with a huge N returns false without allocating.
+// ---------------------------------------------------------------------------
+
+describe('F3 regression: verifyPin bounds scrypt parameters from the record', () => {
+  it('a record with an oversized N returns false quickly and does not allocate', async () => {
+    // 2^30 * 8 is far beyond the ceiling; the unbounded code would have
+    // asked scrypt for gigabytes. The guard returns false before scrypt.
+    const salt = Buffer.from('0123456789abcdef').toString('base64');
+    const hash = Buffer.alloc(32).toString('base64');
+    const hostile = `scrypt$${2 ** 30}$8$1$${salt}$${hash}`;
+    const before = process.memoryUsage().rss;
+    const started = Date.now();
+    const result = await verifyPin(PIN_A, hostile);
+    const elapsed = Date.now() - started;
+    const grewMb = (process.memoryUsage().rss - before) / (1024 * 1024);
+    expect(result).toBe(false);
+    expect(elapsed).toBeLessThan(1_000);
+    // Nowhere near the multi-gigabyte allocation the unbounded path invited.
+    expect(grewMb).toBeLessThan(256);
+  });
+
+  it('a record exactly at the N*r ceiling is still evaluated (not falsely rejected)', async () => {
+    // At the ceiling with a genuine hash for these params, the right PIN
+    // still verifies: the guard rejects beyond the ceiling, not at it.
+    const { scryptSync } = await import('node:crypto');
+    const N = SCRYPT_MAX_NR / SCRYPT_PARAMS.r;
+    const salt = Buffer.from('ceiling-salt-16b');
+    const key = scryptSync(PIN_A, salt, 32, {
+      N,
+      r: SCRYPT_PARAMS.r,
+      p: 1,
+      maxmem: 256 * N * SCRYPT_PARAMS.r,
+    });
+    const encoded = `scrypt$${N}$${SCRYPT_PARAMS.r}$1$${salt.toString('base64')}$${key.toString('base64')}`;
+    expect(await verifyPin(PIN_A, encoded)).toBe(true);
+    expect(await verifyPin(PIN_B, encoded)).toBe(false);
+  });
+
+  it('just beyond the ceiling returns false', async () => {
+    const salt = Buffer.from('0123456789abcdef').toString('base64');
+    const hash = Buffer.alloc(32).toString('base64');
+    const N = (SCRYPT_MAX_NR / SCRYPT_PARAMS.r) * 2;
+    const beyond = `scrypt$${N}$${SCRYPT_PARAMS.r}$1$${salt}$${hash}`;
+    expect(await verifyPin(PIN_A, beyond)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F4 (suggestion): weak PINs rejected at setup, no information leak.
+// ---------------------------------------------------------------------------
+
+describe('F4: weak PIN denylist (setup only)', () => {
+  it.each(['0000', '1111', '1234', '1212', '7777', '2345', '5432', '9876'])(
+    'rejects the easily guessed PIN %s',
+    (pin) => {
+      expect(isWeakPin(pin)).toBe(true);
+    },
+  );
+
+  it.each([PIN_A, PIN_B, '9137', '4820', '3607'])('accepts the normal PIN %s', (pin) => {
+    expect(isWeakPin(pin)).toBe(false);
   });
 });

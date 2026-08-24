@@ -17,6 +17,13 @@ export {
   DEFAULT_WATCHDOG_MS,
   type UssdHttpDeps,
 } from './gateway/http.js';
+export {
+  parseCidrList,
+  parseCidr,
+  ipInCidrs,
+  normalizeIp,
+  type ParsedCidr,
+} from './gateway/ipAllowlist.js';
 
 export type {
   ClaimOutcome,
@@ -26,15 +33,22 @@ export type {
 } from './session/types.js';
 export { DEFAULT_SESSION_TTL_MS, InMemorySessionStore } from './session/memoryStore.js';
 
-export type { PinRecord, PinStore } from './pin/types.js';
+export type { FailureOutcome, PinRecord, PinStore } from './pin/types.js';
 export { InMemoryPinStore } from './pin/memoryStore.js';
 export { JsonFilePinStore } from './pin/jsonFileStore.js';
-export { SCRYPT_PARAMS, hashPin, verifyPin } from './pin/hash.js';
+export {
+  SCRYPT_PARAMS,
+  SCRYPT_MAX_NR,
+  SCRYPT_MAX_P,
+  hashPin,
+  verifyPin,
+} from './pin/hash.js';
 export {
   PIN_PATTERN,
   PIN_POLICY,
   establishPin,
   hasPin,
+  isWeakPin,
   isWellFormedPin,
   verifyPinAttempt,
   type PinPolicyDeps,
