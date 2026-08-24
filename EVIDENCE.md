@@ -30,11 +30,23 @@ the run.
 
 Testnet resets clear all ledger entries, which would dead-link every hash
 below on stellar.expert. Per the published schedule on
-`developers.stellar.org/docs/learn/fundamentals/networks` (retrieved
-10 August 2026): resets happen 2–4 times per year at 17:00 UTC, announced
-at least two weeks in advance, and **the next scheduled 2026 reset is
-16 December 2026**. The sprint (ends 8 September 2026) and its
-verification window fall safely before that date.
+`https://developers.stellar.org/docs/networks` (retrieved 10 August 2026,
+re-verified 18 August 2026): resets happen 2 to 4 times per year at
+17:00 UTC, announced at least two weeks in advance on the Stellar Dashboard
+(`https://dashboard.stellar.org`) and developer community channels, and
+**the next scheduled 2026 reset is 16 December 2026**. On 18 August 2026
+the Stellar Dashboard carried no testnet reset announcement; its only
+scheduled-maintenance notice was the testnet **upgrade** to Protocol 28
+(Adapter) on 27 August 2026 at 17:00 UTC (also on
+`https://status.stellar.org`, posted 13 August 2026). A protocol upgrade
+is not a reset: ledger history survives it, so every hash in this file
+stays resolvable through 27 August. The sprint (ends 8 September 2026) and
+its verification window fall safely before the December reset.
+
+If a reset does happen before verification, `npm run sponsor:recover`
+recreates a sponsor, funds it, and replays the transactions below against
+the reset network (see `docs/sponsor-account.md`); the raw Horizon excerpts
+embedded here remain the record of the 10 August run.
 
 ## Accounts used (testnet, throwaway)
 

@@ -76,9 +76,14 @@ Named here deliberately, so nothing is discovered as a gap later:
 ## Testnet reset note
 
 The Stellar test network is wiped periodically. Per the schedule published
-on developers.stellar.org (checked 10 August 2026), the **next reset is
-16 December 2026** — after this sprint and its verification window. If
-verification ever happens after a reset, the explorer links above will
-stop resolving; for that case, `EVIDENCE.md` in this repository embeds the
-raw ledger records (Horizon JSON) for every transaction and figure, so the
-evidence remains inspectable from the repository alone.
+at <https://developers.stellar.org/docs/networks> (checked 10 August 2026,
+re-checked 18 August 2026), the **next reset is 16 December 2026**, after
+this sprint and its verification window. Resets are announced at least two
+weeks ahead on the Stellar Dashboard (<https://dashboard.stellar.org>); as
+of 18 August 2026 it shows no reset, only the testnet upgrade to Protocol 28
+on 27 August 2026, which keeps all history and does not affect the links
+above. If verification ever happens after a reset, the explorer links above
+will stop resolving; for that case, `EVIDENCE.md` in this repository embeds
+the raw ledger records (Horizon JSON) for every transaction and figure, so
+the evidence remains inspectable from the repository alone, and
+`npm run sponsor:recover` replays the flow on the reset network.
