@@ -13,19 +13,26 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Sep10JwtClaims } from '../../src/auth/token.js';
 import {
   AfricasTalkingGateway,
+  ConfigError,
   createUssdRequestListener,
   InMemoryPinStore,
   InMemorySessionStore,
   establishPin,
   handleStep,
+  parseCidrList,
   type JourneySeam,
   type MachineDeps,
+  type ParsedCidr,
 } from '../../src/index.js';
 
 const MSISDN = '+999700000001';
 const ACCOUNT = 'GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM';
 const PIN = '7391';
 const WRONG_PIN = '2846';
+// A callback path long enough to satisfy the required-path guard. In a real
+// deployment this is a long random segment (a capability URL); here it is
+// just long enough and fixed so tests can address it.
+const TEST_CALLBACK_PATH = '/ussd/cb-3f9a7c21e0b84d56';
 
 interface Fixture {
   url: string;
@@ -43,7 +50,14 @@ interface Fixture {
   close(): Promise<void>;
 }
 
-async function startFixture(options: { watchdogMs?: number } = {}): Promise<Fixture> {
+async function startFixture(
+  options: {
+    watchdogMs?: number;
+    allowedCidrs?: readonly ParsedCidr[];
+    callbackPath?: string;
+  } = {},
+): Promise<Fixture> {
+  const callbackPath = options.callbackPath ?? TEST_CALLBACK_PATH;
   const sessions = new InMemorySessionStore();
   const pins = new InMemoryPinStore();
   const logs: string[] = [];
@@ -88,7 +102,8 @@ async function startFixture(options: { watchdogMs?: number } = {}): Promise<Fixt
     gateway: new AfricasTalkingGateway(),
     machine,
     sessions,
-    callbackPath: '/ussd/callback',
+    callbackPath,
+    allowedCidrs: options.allowedCidrs,
     watchdogMs: options.watchdogMs,
     log: (line) => logs.push(line),
   });
@@ -96,7 +111,7 @@ async function startFixture(options: { watchdogMs?: number } = {}): Promise<Fixt
   const server = createServer(listener);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
-  const url = `http://127.0.0.1:${port}/ussd/callback`;
+  const url = `http://127.0.0.1:${port}${callbackPath}`;
 
   return {
     url,
@@ -264,7 +279,7 @@ describe('simulated gateway over HTTP', () => {
     });
     expect(missing.status).toBe(400);
 
-    const wrongPath = await fetch(fixture.url.replace('/ussd/callback', '/other'), {
+    const wrongPath = await fetch(fixture.url.replace(TEST_CALLBACK_PATH, '/other'), {
       method: 'POST',
       body: '',
     });
@@ -359,5 +374,85 @@ describe('simulated gateway over HTTP', () => {
     const replay = await handleStep(deps, step(`1*${PIN}`));
     expect(replay.text).toBe('This step was already completed');
     expect(authCalls).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F2 (blocking): the callback surface must be authenticated. These reproduce
+// the reviewer's probe: without credentials, POSTs naming a victim MSISDN
+// must not reach the session logic when the deployer's controls are set.
+// ---------------------------------------------------------------------------
+
+describe('F2 regression: callback authentication', () => {
+  let fixture: Fixture | undefined;
+  afterEach(async () => {
+    await fixture?.close();
+    fixture = undefined;
+  });
+
+  it('refuses to start without a callback path (no default)', () => {
+    expect(() =>
+      createUssdRequestListener({
+        gateway: new AfricasTalkingGateway(),
+        machine: {} as unknown as MachineDeps,
+        sessions: new InMemorySessionStore(),
+        callbackPath: '',
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses to start with a too-short (guessable) callback path', () => {
+    expect(() =>
+      createUssdRequestListener({
+        gateway: new AfricasTalkingGateway(),
+        machine: {} as unknown as MachineDeps,
+        sessions: new InMemorySessionStore(),
+        callbackPath: '/ussd',
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("the reviewer's probe: unauthenticated POSTs cannot lock a victim when the allowlist excludes the caller", async () => {
+    // Allowlist a range that does NOT contain 127.0.0.1 (the test client),
+    // so every request originates outside it.
+    fixture = await startFixture({ allowedCidrs: parseCidrList('10.0.0.0/8') });
+    // The victim has a real PIN, so wrong guesses WOULD lock them if the
+    // requests were processed.
+    await establishPin({ store: fixture.pins }, MSISDN, PIN);
+
+    // Three unauthenticated POSTs naming the victim, exactly as the probe.
+    for (let i = 0; i < 3; i++) {
+      const res = await fixture.post(atFields(`atk-${i}`, `1*${WRONG_PIN}`));
+      expect(res.status).toBe(403);
+      expect(res.body).toBe('forbidden');
+    }
+
+    // The victim is not lockable: nothing was parsed, so no failure was
+    // recorded and no session was created.
+    const record = await fixture.pins.get(MSISDN);
+    expect(record?.failures).toBe(0);
+    expect(record?.lockedUntil).toBe(0);
+    expect(fixture.sessions.size).toBe(0);
+    // The refusal happened before any parsing; the log shows ipRejected and
+    // no session/step events.
+    const log = fixture.logs.join('\n');
+    expect(log).toContain('event=ipRejected');
+    expect(log).not.toContain('event=start');
+    expect(log).not.toContain('event=pinRejected');
+  });
+
+  it('a request from inside the allowlist is processed normally', async () => {
+    // Allowlist the loopback range that contains the test client.
+    fixture = await startFixture({ allowedCidrs: parseCidrList('127.0.0.0/8') });
+    const dial = await fixture.post(atFields('inside-1', ''));
+    expect(dial.status).toBe(200);
+    expect(dial.body).toContain('Saleem Stellar test');
+  });
+
+  it('with no allowlist configured the surface still serves (path is the control)', async () => {
+    fixture = await startFixture();
+    const dial = await fixture.post(atFields('nolist-1', ''));
+    expect(dial.status).toBe(200);
+    expect(dial.body).toMatch(/^CON /);
   });
 });
