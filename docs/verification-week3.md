@@ -73,7 +73,35 @@ Expected output, verbatim:
   `https://stellar.expert/explorer/testnet/tx/<hash>` and confirm it
   exists.
 
-## 6. What is deliberately out of scope
+## 6. Security hardening from the build lead's review
+
+The build lead reviewed this work by building a working exploit, not by
+reading. Five findings were fixed in the review round, each with a test
+that reproduces his probe:
+
+- **The lockout counter is now race-free.** He showed that firing many
+  wrong guesses at once was recorded as a single failure, so the three
+  strike limit could be bypassed in parallel batches. The counter is now
+  atomic; `test/unit/ussdPin.test.ts` fires 20 concurrent wrong guesses
+  and confirms the account locks, and that a batch containing the correct
+  PIN cannot get in once locked.
+- **The callback surface is authenticated.** He showed that, unauthenticated,
+  three POSTs naming a victim's number could lock that victim out. The
+  callback path is now a required, unguessable segment (the handler refuses
+  to start without one) and an optional deployer-set IP allowlist refuses
+  outside traffic before it is parsed;
+  `test/integration/ussdSimulatedGateway.test.ts` reproduces the probe and
+  confirms the victim is not lockable. The residual network responsibility
+  is named for the deployer in the integration guide.
+- Three cheaper fixes rode along: a memory bound on scrypt parameters read
+  from a stored record, a weak-PIN denylist at setup (with a generic,
+  digit-free rejection that leaks nothing), and a monotonic signing latch.
+
+None of this changed the user-visible journey or the `failedCheck`
+contract (still 20 names). See the PR #5 conversation for the disposition
+table.
+
+## 7. What is deliberately out of scope
 
 Production signing, mainnet, the anchor itself, SIM Toolkit key
 material, platform dependencies, the demo video (Week 4), and push

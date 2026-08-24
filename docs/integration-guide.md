@@ -348,15 +348,40 @@ The PIN is consent to sign this session's SEP-10 challenge and run one
 anchor operation. Verification is against an scrypt hash (`node:crypto`,
 N=2^15, r=8, p=1, 16 byte salt, explicit `maxmem`; see
 `src/ussd/pin/hash.ts` for the parameter reasoning and the Node default
-`maxmem` trap it guards against). Three consecutive failures lock the
-MSISDN for 15 minutes, checked before any hashing. The PIN is never
-transmitted onward, stored in plaintext, or logged: it exists between
-the gateway callback body and the verifier in process memory, PIN
-positions are masked to `####` before any input history is persisted,
-idempotency cache keys are SHA-256 digests of the callback text, and the
-test suite sweeps every observable surface for fixture PIN digits. PIN
-setup compares the two entries from the gateway's own cumulative text
-field, so no PIN is held between callbacks even transiently.
+`maxmem` trap it guards against). `verifyPin` also bounds the work
+parameters read from the (untrusted) stored record: an `N * r` or `p`
+beyond a small fixed multiple of the current parameters returns false
+without allocating, so a corrupted record carrying a huge `N` behaves
+like a wrong PIN instead of driving a multi gigabyte allocation.
+
+Three consecutive failures lock the MSISDN for 15 minutes, checked
+before any hashing. **The lockout counter is atomic and this is a hard
+part of the store contract.** A read-modify-write counter is bypassable:
+concurrent wrong guesses each read the same count and each write the same
+increment, so a batch of arbitrary width costs only one recorded failure
+and the three strike limit collapses to three *batches*, not three
+guesses. `PinStore.recordFailure` therefore increments and, at the
+threshold, locks as one indivisible step; the in memory and JSON file
+references do it with no await between read and write, and a Redis or SQL
+implementation must use a real atomic increment (`INCR` in a script, or
+`UPDATE ... SET failures = failures + 1 ... RETURNING` in a transaction).
+A get-then-put emulation is not an implementation of the interface.
+
+At **setup only**, a short denylist refuses the most guessable PINs
+(`0000`, `1111`, `1234`, `1212`, single repeated digits, trivial runs).
+This is UX hardening, not the security control (the atomic lockout is);
+it never runs at verification, where refusing by pattern would leak which
+pattern a stored PIN matches. The rejection screen is generic and
+digit-free, so it reveals neither the rule nor any attempted digit.
+
+The PIN is never transmitted onward, stored in plaintext, or logged: it
+exists between the gateway callback body and the verifier in process
+memory, PIN positions are masked to `####` before any input history is
+persisted, idempotency cache keys are SHA-256 digests of the callback
+text, and the test suite sweeps every observable surface for fixture PIN
+digits. PIN setup compares the two entries from the gateway's own
+cumulative text field, so no PIN is held between callbacks even
+transiently.
 
 ### Session store and the single use signing claim
 
@@ -370,9 +395,14 @@ wins the right to trigger signing, so a duplicated or replayed callback
 can never cause a second signature or a second anchor operation. The in
 memory reference relies on Node's single threaded event loop (no await
 between check and write); a distributed implementation must use a real
-compare and set. The anchor JWT is custodied in the session record for
-the session lifetime only (the auth module stays stateless, a settled
-ruling), and `assertTokenScope` runs immediately before each use.
+compare and set. The signing latch is also **monotonic**: once
+`signingClaimed` is set, `put` must never clear it back to false, even if
+handed a copy captured before the claim. This keeps the single use
+property from depending on the coupling that every post-claim path ends
+the session; a future non-terminal path cannot silently un-spend the
+latch. The anchor JWT is custodied in the session record for the session
+lifetime only (the auth module stays stateless, a settled ruling), and
+`assertTokenScope` runs immediately before each use.
 
 ### Replay rejection, concretely
 
@@ -406,18 +436,51 @@ renamed, or removed; session layer failures are new typed error classes
 `SigningAlreadyClaimedError`, `GatewayRequestError`,
 `AnchorOperationFailedError`).
 
+### Callback authentication: the deployer's responsibility, stated plainly
+
+**The callback body is attacker-controllable.** `phoneNumber` is a form
+field, and it is the identity the entire session is scoped to; Africa's
+Talking does not sign its callbacks. So without a network control, anyone
+who can reach the callback URL can POST a victim's MSISDN and drive that
+victim's session, for example firing wrong PINs to lock them out, or (once
+past the PIN) triggering a signature. Two layers guard the surface, and
+both ship:
+
+1. **A required, unguessable callback path.** There is no default: the
+   handler refuses to start without a `USSD_CALLBACK_PATH`, and rejects one
+   shorter than a low floor. Use a long random segment. The path is a
+   capability URL, so possession of it is the credential: never log it,
+   never commit it, and rotate it if it leaks. This raises the bar but is
+   not sufficient alone (a URL can leak through referrers, proxies, logs).
+2. **An optional IP allowlist.** Set `USSD_ALLOWED_CIDRS` to the provider's
+   callback egress ranges and a request from outside them is refused before
+   its body is parsed. This is **off by default and cannot ship on**,
+   because Africa's Talking does not publish its egress ranges in its
+   public documentation (its guidance is username-plus-API-key for the
+   outbound direction and "whitelist our IP" for SIP trunks, without
+   listing the range). The ranges are therefore deployment-specific: obtain
+   the current ones from the provider and set them for production. Behind a
+   reverse proxy or tunnel, the handler sees the proxy's address, so
+   allowlist the ingress you actually terminate and have that layer verify
+   the upstream.
+
+Neither layer substitutes for the other. For production, set both. In the
+sandbox the traffic arrives through your tunnel, so leave the allowlist
+empty (or allowlist the tunnel ingress) and rely on the unguessable path.
+
 ### Running the session service
 
-All configuration is non-secret and documented in `.env.example`
-(`USSD_PORT`, `USSD_CALLBACK_PATH`, `USSD_GATEWAY`,
-`USSD_SESSION_TTL_MS`, `USSD_HOME_DOMAIN`,
-`USSD_DEFAULT_COUNTRY_CODE`). Inbound gateway callbacks require no API
-key; the only gateway side configuration is the callback URL, set in the
-provider dashboard. Live testing exposes the local handler through an
-ephemeral tunnel whose URL is never committed. MSISDNs may arrive in
-national format; the layer converts to E.164 using the configured
-country code before anything touches the resolver (country inference is
-this layer's job, a settled ruling).
+Configuration is documented in `.env.example` (`USSD_PORT`,
+`USSD_CALLBACK_PATH`, `USSD_ALLOWED_CIDRS`, `USSD_GATEWAY`,
+`USSD_SESSION_TTL_MS`, `USSD_HOME_DOMAIN`, `USSD_DEFAULT_COUNTRY_CODE`).
+Most values are non-secret, with one exception: `USSD_CALLBACK_PATH` is a
+capability-URL credential (see above), so treat it like a secret.
+Inbound gateway callbacks require no API key; the gateway side
+configuration is the callback URL, set in the provider dashboard. Live
+testing exposes the local handler through an ephemeral tunnel whose URL is
+never committed. MSISDNs may arrive in national format; the layer converts
+to E.164 using the configured country code before anything touches the
+resolver (country inference is this layer's job, a settled ruling).
 
 ## Known limitations, documented for adopters, out of sprint scope
 
