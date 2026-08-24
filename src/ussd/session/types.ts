@@ -89,7 +89,13 @@ export type ClaimOutcome = 'claimed' | 'already_claimed' | 'missing';
 export interface SessionStore {
   /** Return the live session, or undefined when absent or expired. */
   get(sessionId: string, now: number): Promise<UssdSession | undefined>;
-  /** Create or replace a session record. */
+  /**
+   * Create or replace a session record, with one exception: the signing
+   * latch is monotonic. Once `signingClaimed` is true for a session, `put`
+   * MUST NOT clear it back to false, even if handed a stale copy captured
+   * before the claim. This keeps the single-use property from depending on
+   * the coupling that every post-claim path ends the session.
+   */
   put(session: UssdSession): Promise<void>;
   /**
    * Atomically spend the session's one signing claim.

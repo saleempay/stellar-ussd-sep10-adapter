@@ -41,7 +41,14 @@ export class InMemorySessionStore implements SessionStore {
 
   async put(session: UssdSession): Promise<void> {
     this.#sweep(session.lastSeenAt);
-    this.#sessions.set(session.sessionId, { ...session });
+    // Monotonic signing latch: once the claim is spent, a put may never
+    // clear it back to false. Today every post-claim path ends the session,
+    // so a stale pre-claim copy is never written back; this guard keeps the
+    // latch safe even if a future non-terminal path did write one, rather
+    // than resting the whole replay-safety property on that coupling.
+    const existing = this.#sessions.get(session.sessionId);
+    const signingClaimed = session.signingClaimed || existing?.signingClaimed === true;
+    this.#sessions.set(session.sessionId, { ...session, signingClaimed });
   }
 
   async claimSigning(sessionId: string, now: number): Promise<ClaimOutcome> {

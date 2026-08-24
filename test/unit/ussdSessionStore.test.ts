@@ -144,4 +144,42 @@ describe('InMemorySessionStore', () => {
       expect(await store.getResponse('ATUid_1', '1:k')).toBeUndefined();
     });
   });
+
+  // -------------------------------------------------------------------------
+  // F5 (durability): the signing latch is monotonic. Once claimed, a put
+  // carrying a stale pre-claim copy must not un-spend it. This removes the
+  // fragile coupling where the latch survived only because every post-claim
+  // path ended the session.
+  // -------------------------------------------------------------------------
+  describe('F5 regression: monotonic signing latch', () => {
+    it('a put with a stale copy (signingClaimed false) leaves the stored latch true', async () => {
+      const store = new InMemorySessionStore();
+      await store.put(makeSession());
+      expect(await store.claimSigning('ATUid_1', T0 + 1)).toBe('claimed');
+
+      // The exact fragile case: write back a copy captured BEFORE the claim.
+      await store.put(makeSession({ signingClaimed: false, state: 'pinEnter' }));
+
+      // The latch stays spent, so a replay is still rejected.
+      expect((await store.get('ATUid_1', T0 + 2))?.signingClaimed).toBe(true);
+      expect(await store.claimSigning('ATUid_1', T0 + 3)).toBe('already_claimed');
+    });
+
+    it('a put may still SET the latch (false to true), it only refuses to clear it', async () => {
+      const store = new InMemorySessionStore();
+      await store.put(makeSession());
+      await store.put(makeSession({ signingClaimed: true }));
+      expect((await store.get('ATUid_1', T0 + 1))?.signingClaimed).toBe(true);
+    });
+
+    it('other fields still update normally around the latched flag', async () => {
+      const store = new InMemorySessionStore();
+      await store.put(makeSession());
+      await store.claimSigning('ATUid_1', T0 + 1);
+      await store.put(makeSession({ signingClaimed: false, state: 'done' }));
+      const rec = await store.get('ATUid_1', T0 + 2);
+      expect(rec?.state).toBe('done');
+      expect(rec?.signingClaimed).toBe(true);
+    });
+  });
 });
