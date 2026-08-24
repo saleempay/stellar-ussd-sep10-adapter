@@ -91,10 +91,25 @@ export async function hashPin(pin: string): Promise<string> {
 }
 
 /**
+ * Ceiling on `N * r` accepted from a stored record. The record is
+ * untrusted input to {@link verifyPin}: a value carrying a huge `N` would
+ * otherwise drive a multi-gigabyte scrypt allocation that stalls or kills
+ * the process. Four times the current work factor leaves generous room for
+ * an honest parameter bump while rejecting anything abusive. Records
+ * beyond it behave like a wrong PIN (return false), never an allocation.
+ */
+export const SCRYPT_MAX_NR = 4 * SCRYPT_PARAMS.N * SCRYPT_PARAMS.r;
+
+/** Ceiling on the `p` parameter accepted from a stored record. */
+export const SCRYPT_MAX_P = 4 * SCRYPT_PARAMS.p;
+
+/**
  * Verify a PIN against an encoded hash. Constant time comparison.
  *
  * The stored parameters are honoured (so records survive a future
- * parameter change), with `maxmem` sized to the stored N and r.
+ * parameter change), with `maxmem` sized to the stored N and r, but they
+ * are bounded first: a record whose `N * r` or `p` exceeds the ceilings
+ * above is rejected without allocating (see {@link SCRYPT_MAX_NR}).
  *
  * @returns true on match; false on mismatch or on a malformed record
  *   (a malformed record must behave like a wrong PIN, not crash the
@@ -110,6 +125,11 @@ export async function verifyPin(pin: string, encoded: string): Promise<boolean> 
   const p = Number(pRaw);
   if (!Number.isInteger(N) || !Number.isInteger(r) || !Number.isInteger(p)) return false;
   if (N <= 1 || r <= 0 || p <= 0) return false;
+  // Bound the work parameters taken from the untrusted record BEFORE any
+  // allocation, so an oversized N returns false fast rather than exhausting
+  // memory. This restores the module's stated property that a malformed
+  // record behaves like a wrong PIN.
+  if (N * r > SCRYPT_MAX_NR || p > SCRYPT_MAX_P) return false;
 
   let salt: Buffer;
   let expected: Buffer;
