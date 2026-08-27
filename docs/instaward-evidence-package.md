@@ -209,17 +209,18 @@ it:
 | A SEP-10 challenge signed and accepted on testnet | Rows 10, 11 |
 | A SEP-10 JWT issued for an account with no client-side key | Rows 7, 10 |
 
-**Two gaps remain open, and are named here rather than left to be found.**
+**The reconciliation found two gaps. One is closed, one remains open.**
 
-1. **The demo video is not yet recorded.** It is a Week 4 deliverable and
-   the only item in this package without evidence behind it. The plan is
-   written and the recording is an operator step. Until it exists, this
-   package is complete on every other line and incomplete on that one.
-2. **The Week 3 checklist does not carry the SOW clause mapping** that
-   the Week 1 and Week 2 checklists carry in their last column. The
-   evidence itself is present and mapped in the table above; what is
-   missing is the per row citation on that page. This is a formatting
-   inconsistency, not a missing claim.
+1. **Open: the demo video is not yet recorded.** It is a Week 4
+   deliverable and the only item in this package without evidence behind
+   it. The plan is written and the recording is an operator step. Until it
+   exists, this package is complete on every other line and incomplete on
+   that one.
+2. **Closed: the Week 3 checklist now carries its clause mapping.** Week 1
+   and Week 2 cite the clause each row satisfies in a final column and
+   Week 3 did not. The evidence was present and mapped; only the citation
+   was missing. A mapping table was added to
+   [verification-week3.md](verification-week3.md) on 27 August 2026.
 
 One note on sourcing, for accuracy. The Statement of Work document itself
 is not held in this repository. The deliverable wording quoted above is

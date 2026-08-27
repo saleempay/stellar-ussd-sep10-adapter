@@ -45,9 +45,9 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-**Week 3 of 4 delivered** (sprint started 10 August 2026, targeting a first
-public release with a working USSD authentication flow against Stellar
-testnet):
+**Week 4 of 4, close out** (sprint started 10 August 2026, targeting a
+first public release with a working USSD authentication flow against
+Stellar testnet). All three build weeks are merged:
 
 - MSISDN → Stellar account resolution behind a pluggable registry
   (in-memory and JSON-file reference stores)
@@ -76,8 +76,14 @@ testnet):
   [docs/integration-guide.md](docs/integration-guide.md) and
   [EVIDENCE.md](EVIDENCE.md).
 
-Not yet built (Week 4): the demo and evidence packaging. Everything
-targets **testnet only**.
+- **Close out** (Week 4): the [evidence
+  package](docs/instaward-evidence-package.md), the [demo video
+  plan](docs/demo-video-plan.md), continuous integration on every pull
+  request, and remediation of what testing surfaced.
+
+The demo video recording is the one deliverable still outstanding; it is
+an operator step and its plan is linked above. Everything targets
+**testnet only**.
 
 ## Quickstart (testnet)
 
