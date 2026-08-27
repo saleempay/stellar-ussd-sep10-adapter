@@ -647,3 +647,255 @@ USSD_E2E_WAIT_MINUTES=30 npm run test:e2e:ussd
 # drive the journey in the provider's web simulator; the test finishes,
 # replays the final callback, and writes the masked evidence JSON.
 ```
+
+---
+
+# Evidence: Week 4 (Protocol 28 re-verification)
+
+## What this file section proves, in plain language
+
+The Stellar test network upgraded to Protocol 28 on 27 August 2026. The
+Week 1, 2 and 3 evidence above was all recorded before that upgrade, and
+this file promised, in writing, that the flows would be run again
+afterwards and the result stated plainly either way.
+
+This section is that run. The short answer: **nothing changed.** The same
+software, unmodified, produced the same results on the upgraded network,
+down to the fee, the reserve arithmetic and the shape of the transaction.
+
+Nothing above this line has been edited. Weeks 1 to 3 are append only
+history and the hashes recorded there remain valid: a protocol upgrade
+keeps all ledger history.
+
+## The upgrade, observed rather than assumed
+
+The upgrade was scheduled by the Stellar Development Foundation for
+17:00 UTC on 27 August 2026 (status.stellar.org, "Testnet Adapter,
+Protocol 28 Upgrade", window 17:00 to 17:05 UTC).
+
+An important detail, recorded because it changes how this evidence should
+be read: **the network software was upgraded before the protocol itself
+was.** At 13:27 UTC on 27 August, Horizon already reported
+`core_version: stellar-core 28.0.1` and `supported_protocol_version: 28`,
+while `current_protocol_version` was still 27 and ledgers were still
+closing at protocol 27. A run at that time would have been a protocol 27
+run wearing a Protocol 28 label.
+
+The protocol itself changed at 17:00:57 UTC:
+
+| Ledger | Protocol | Closed at (UTC) |
+|---|---|---|
+| 4365293 and earlier | 27 | up to 2026-08-27T17:00:52Z |
+| 4365294 | 28 | 2026-08-27T17:00:57Z |
+| 4365295 | 28 | 2026-08-27T17:01:02Z |
+
+Horizon root at 17:01:20 UTC, after the change:
+
+```
+horizon_version:            28.0.0-8be4ddda1e1cffc1a8f0ad98e37a95c25df45f95
+core_version:               stellar-core 28.0.1 (947aad8413c189d85504acf72207e85eeda9b021)
+current_protocol_version:   28
+supported_protocol_version: 28
+network_passphrase:         Test SDF Network ; September 2015
+```
+
+Every transaction below landed in a Protocol 28 ledger, and the ledger's
+own `protocol_version` field is quoted for each one rather than inferred
+from the clock.
+
+## A baseline was taken first, and is labelled as such
+
+Before the upgrade, at 13:28 UTC, both suites were run against the still
+protocol 27 network so there would be a same day, same machine, same SDK
+comparison rather than a comparison against evidence recorded weeks
+earlier on different sponsors.
+
+| Run | Protocol | Week 1 creation tx | Week 2 creation tx |
+|---|---|---|---|
+| Baseline, 13:28 UTC | 27 | `5dbfe1c32c51bd86d7aae0268fc5e93e2dfd7fc85559ec7572047c80ab15d544` | `cccffe075e2c32ca714f24391e9fccbc3e8f2c60c410cb58ddbb39c887d9e720` |
+| Re-verification, 17:01 UTC | 28 | `1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6` | `8a102702996abff1e5ee19781f71f2bb32f381d3298d59ed2eb81a72b11993c6` |
+
+Both baseline transactions are equally real and equally checkable. They
+are labelled protocol 27 because that is what they are.
+
+## What was run
+
+Software exactly as merged to `main` at `b4cb0e3`, with no source change
+of any kind. `@stellar/stellar-sdk` pinned at **16.2.0**, resolved from
+`package-lock.json` and confirmed from `node_modules` at run time. Sponsor
+for both runs: `GCVTPY7B6RNGEGV5W5FANFV5DSZ76IQ3LZWARG67NSWA24BLZFHSAON7`
+(throwaway, friendbot funded 27 August, secret only in an uncommitted
+local `.env`).
+
+```
+npm run test:e2e     # Week 1 account creation and trustline, Week 2 SEP-10
+```
+
+Result: **2 passed, 0 failed**, at 17:01:32 to 17:01:43 UTC.
+
+## Week 1 flow under Protocol 28
+
+- MSISDN (fictional): `+99903901598`
+- Account: `GCJO7FS7UIJCL4IU73XPSPQYRAJGEV3IZIBWRWI2NU2T64ZMUZDAZBQY`
+- Creation tx: `1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6`
+  (https://stellar.expert/explorer/testnet/tx/1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6)
+
+Raw Horizon excerpt (`GET /transactions/{hash}`, retrieved after the run):
+
+```json
+{
+  "id": "1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6",
+  "successful": true,
+  "ledger": 4365303,
+  "created_at": "2026-08-27T17:01:42Z",
+  "source_account": "GCVTPY7B6RNGEGV5W5FANFV5DSZ76IQ3LZWARG67NSWA24BLZFHSAON7",
+  "fee_charged": "400",
+  "operation_count": 4
+}
+```
+
+Raw Horizon excerpt (`GET /ledgers/4365303`), the protocol proof:
+
+```json
+{
+  "protocol_version": 28,
+  "base_reserve_in_stroops": 5000000
+}
+```
+
+Operations, in order, from `GET /transactions/{hash}/operations`:
+
+```
+begin_sponsoring_future_reserves
+create_account
+change_trust
+end_sponsoring_future_reserves
+```
+
+Account state read back: **0 XLM** native balance, SRT trustline present,
+`num_sponsored: 3`, one signer. The second resolution of the same MSISDN
+returned the same account and created nothing, as before.
+
+## Week 2 flow under Protocol 28
+
+- Account (no client side key):
+  `GAG4FIAVYIRKI5SRLIXL4VREDLK5I7K6PCLNZP4NVFAZXIHGK7CGPUTQ`
+- Creation tx: `8a102702996abff1e5ee19781f71f2bb32f381d3298d59ed2eb81a72b11993c6`
+  (https://stellar.expert/explorer/testnet/tx/8a102702996abff1e5ee19781f71f2bb32f381d3298d59ed2eb81a72b11993c6)
+
+Raw Horizon excerpt:
+
+```json
+{
+  "id": "8a102702996abff1e5ee19781f71f2bb32f381d3298d59ed2eb81a72b11993c6",
+  "successful": true,
+  "ledger": 4365302,
+  "created_at": "2026-08-27T17:01:37Z",
+  "source_account": "GCVTPY7B6RNGEGV5W5FANFV5DSZ76IQ3LZWARG67NSWA24BLZFHSAON7",
+  "fee_charged": "400",
+  "operation_count": 4
+}
+```
+
+`GET /ledgers/4365302`: `"protocol_version": 28`,
+`"base_reserve_in_stroops": 5000000`. Operations: the same four operation
+sponsorship sandwich as above.
+
+SEP-10 exchange, all timestamps 27 August 2026:
+
+| Leg | Result |
+|---|---|
+| Challenge GET | HTTP 200 at 17:01:37.709Z |
+| Signed challenge POST, token returned | HTTP 200 at 17:01:38.020Z |
+| JWT `sub` | `GAG4FIAVYIRKI5SRLIXL4VREDLK5I7K6PCLNZP4NVFAZXIHGK7CGPUTQ` (equals the account) |
+| JWT window | `iat=1787850097 exp=1787936497` (24 hours) |
+| SEP-6 `/transactions` without token | HTTP 403 |
+| SEP-6 `/transactions` with token | HTTP 200 |
+
+Signature redacted here as in the Week 2 section, for the same reason.
+
+## Did anything change under Protocol 28? No
+
+Compared field by field against the protocol 27 baseline taken three and a
+half hours earlier on the same machine with the same SDK:
+
+| Measure | Protocol 27 baseline | Protocol 28 | Changed? |
+|---|---|---|---|
+| Week 1 e2e | passed | passed | no |
+| Week 2 e2e | passed | passed | no |
+| Operations per creation | 4 (sponsorship sandwich) | 4, identical types and order | no |
+| Fee charged | 400 stroops | 400 stroops | no |
+| `base_reserve_in_stroops` | 5000000 | 5000000 | no |
+| Reserve consumed per account plus trustline | `num_sponsored: 3` | `num_sponsored: 3` | no |
+| Sponsor balance movement | fee only, 0.0000400 XLM | fee only, 0.0000400 XLM | no |
+| New account native balance | 0 XLM | 0 XLM | no |
+| SEP-10 challenge GET | HTTP 200 | HTTP 200 | no |
+| SEP-10 token POST | HTTP 200 | HTTP 200 | no |
+| JWT scoping to the account | `sub` equals account | `sub` equals account | no |
+| Anchor SEP-6 without token | HTTP 403 | HTTP 403 | no |
+| Anchor SEP-6 with token | HTTP 200 | HTTP 200 | no |
+| Offline suite | 350 passed, 3 skipped | 350 passed, 3 skipped | no |
+
+**Plain statement: nothing changed.** No code change, no configuration
+change and no dependency change was needed to run on Protocol 28. No
+behaviour differed. The promise made in the Week 3 section is discharged.
+
+This is the expected result rather than a lucky one. The Protocol 28
+release notes published by the Stellar Development Foundation
+(developers.stellar.org/docs/networks/software-versions, read 27 August
+2026) list three changes: CAP-83, letting validators vote to drop the
+transaction set from the current ledger; CAP-85, externally managed
+contract executables; and CAP-86, host functions for sparse symbol keyed
+map creation and unpacking. CAP-85 and CAP-86 are smart contract host
+features. CAP-83 is validator consensus behaviour. None of the three
+touches the classic operations this adapter uses, or the construction and
+validation of a SEP-10 challenge transaction.
+
+## The pinned SDK version, checked rather than assumed
+
+`@stellar/stellar-sdk` remains pinned at **16.2.0** and that remains the
+correct choice for this repository.
+
+The reasoning, and the one caveat, both recorded so a later reader does
+not have to reconstruct them:
+
+- The adapter uses classic operations and SEP-10 challenge handling only.
+  It parses no Soroban XDR and calls no contract host function, so none of
+  the three Protocol 28 CAPs reaches its code paths.
+- The claim is not merely argued, it is demonstrated: 16.2.0 ran
+  unmodified against Protocol 28 and produced identical results, above.
+- **Caveat, stated plainly.** The Stellar documentation's software version
+  table lists `v17.0.0-rc.1` beside Protocol 28. That table is a
+  recommendation for developers building against new Protocol 28 features,
+  not a requirement for classic usage, and most of its Protocol 28 rows
+  were still marked TBD when read on 27 August 2026. It also names a
+  release candidate, while stable 17.0.0 and 17.0.1 have since been
+  published to npm (20 and 25 August 2026).
+- Upgrading to the 17.x line is therefore a real and available option, and
+  it is deliberately **not** taken in this session. It is a dependency
+  major version change that would need its own review, and doing it inside
+  the run whose purpose is to prove the merged code still works would have
+  confounded exactly the result this section reports. It is recorded as a
+  post sprint item.
+
+## Still outstanding at the time of writing: the Week 3 USSD leg
+
+The Week 3 live journey is driven by a human in the gateway's sandbox
+simulator, and its callback URL points at an ephemeral tunnel that must be
+re-pointed in the gateway dashboard by an operator each time. A fresh
+tunnel was stood up for this session and the callback URL handed to the
+operator; the re-run of the sandbox journey under Protocol 28 has not
+happened at the time this section was written.
+
+What that does and does not leave open, stated precisely:
+
+- The Protocol 28 question itself is **answered** by the runs above. The
+  USSD session layer sits on top of the Week 1 and Week 2 flows and adds
+  no Stellar protocol surface of its own: the on chain work it performs is
+  the same sponsored creation, and the anchor work is the same SEP-10 and
+  SEP-6 exchange, both re-verified above under Protocol 28.
+- What is not yet re-confirmed is the gateway leg end to end after the
+  upgrade. That is a re-demonstration, not an open protocol risk.
+
+When the operator drives the journey, its result will be appended below
+this line, in a dated subsection, whatever the outcome.
