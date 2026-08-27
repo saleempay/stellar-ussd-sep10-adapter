@@ -5,6 +5,12 @@
 A server-side SEP-10 authentication adapter that brings authenticated Stellar
 anchor flows to USSD and SIM Toolkit sessions on feature phones.
 
+**Reviewing this work?** Start at
+[docs/instaward-evidence-package.md](docs/instaward-evidence-package.md).
+It states what was delivered and gives a checklist where every row is a
+link to click or one command to run, with the expected answer beside it.
+No programming knowledge needed.
+
 ## The problem
 
 SEP-10 authenticates a client by having it sign a challenge transaction with
