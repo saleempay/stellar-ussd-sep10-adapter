@@ -135,7 +135,9 @@ viewer of the Stellar test network that we do not control.
 | 13 | That session created an account on chain | Click <https://stellar.expert/explorer/testnet/tx/ae18582eb28446096fa129cbc77d1f5ef70dcc7d322f512a2e77e5e634db72ce> | A successful transaction in ledger **4299047**, **23 August 2026 at 20:49 UTC**, 4 operations |
 | 14 | The session completed an anchor operation, confirmed by the anchor itself | Open [EVIDENCE.md](../EVIDENCE.md), Week 3 section, "The anchor operation" | The anchor returned a deposit record and, read back separately with the token, reported it with status `incomplete`. That is the anchor confirming a deposit was started and not funded, which is correct: no funds move in this project |
 | 15 | Replay attempts were refused | Open [EVIDENCE.md](../EVIDENCE.md), Week 3 section, "Replay attempts rejected" | The final step re-sent byte for byte returned the identical cached screen and re-ran nothing; a tampered version returned "This step was already completed". The authentication count stayed at **1** in both cases |
-| 16 | The whole test suite passes from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && npm install && npm test` (needs Node.js 22 or newer) | A final line reporting **350 passed, 3 skipped**. The 3 skipped are the live network tests, which are off by default because they spend a funded account |
+| 16 | The software still works after Stellar's Protocol 28 upgrade | Open [EVIDENCE.md](../EVIDENCE.md), Week 4 section, "Did anything change under Protocol 28?" | A thirteen row table comparing before and after, every row reading "no". The test network upgraded on 27 August 2026 and the same software, unchanged, produced identical results |
+| 17 | That claim rests on a transaction in an upgraded ledger, not on timing | Click <https://stellar.expert/explorer/testnet/tx/1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6> | A successful transaction in ledger **4365303**, **27 August 2026 at 17:01 UTC**, 4 operations, created after the upgrade took effect at 17:00:57 UTC |
+| 18 | The whole test suite passes from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && npm install && npm test` (needs Node.js 22 or newer) | A final line reporting **350 passed, 3 skipped**. The 3 skipped are the live network tests, which are off by default because they spend a funded account |
 
 ---
 
@@ -170,13 +172,17 @@ changed. For completeness:
   duplicated entries if followed literally. Reworded.
 - The dependency install script allowlist was reviewed and kept, and the
   one remaining warning on a fresh install was closed.
+- The Stellar test network upgraded to Protocol 28 on 27 August 2026. The
+  evidence file had promised in writing that the live flows would be run
+  again afterwards and the result stated plainly either way. They were,
+  and nothing changed (rows 16 and 17).
 
 ## Verification of this document
 
 Every link and every transaction hash printed in this document was
 checked against the live services at assembly time.
 
-**Checked on 27 August 2026.** All 16 rows resolve. The 7 transaction
+**Checked on 27 August 2026.** All 18 rows resolve. The 8 transaction
 hashes referenced across this package were each fetched from Horizon, the
 Stellar network's public API, and each returned a successful transaction
 with the ledger number and date printed here. The 3 accounts were fetched
@@ -203,9 +209,9 @@ it:
 | Statement of Work evidence line | Satisfied by |
 |---|---|
 | Public repository link | Row 1 |
-| MIT licensed repository containing the adapter | Rows 2, 8, 16 |
+| MIT licensed repository containing the adapter | Rows 2, 8, 18 |
 | Commit history across the sprint | Row 3 |
-| Transaction hashes showing account creation, viewable on stellar.expert | Rows 5, 6, 9, 13 |
+| Transaction hashes showing account creation, viewable on stellar.expert | Rows 5, 6, 9, 13, 17 |
 | A SEP-10 challenge signed and accepted on testnet | Rows 10, 11 |
 | A SEP-10 JWT issued for an account with no client-side key | Rows 7, 10 |
 
