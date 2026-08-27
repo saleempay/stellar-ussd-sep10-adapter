@@ -82,8 +82,8 @@ npm install
 npm test                          # offline unit tests
 
 # Live testnet end-to-end: fund a throwaway sponsor account…
-node scripts/setup-sponsor.mjs
-cp .env.example .env              # then paste the two printed SPONSOR_* lines
+cp .env.example .env              # the template already lists every key
+node scripts/setup-sponsor.mjs    # then fill in the two SPONSOR_ values in .env
 # …and run the flow: resolve a phone number, create the account with
 # sponsored reserves, establish the trustline, print tx hashes:
 npm run test:e2e
