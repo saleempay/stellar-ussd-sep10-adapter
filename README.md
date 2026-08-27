@@ -1,5 +1,7 @@
 # Stellar USSD SEP-10 Adapter
 
+[![CI](https://github.com/saleempay/stellar-ussd-sep10-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/saleempay/stellar-ussd-sep10-adapter/actions/workflows/ci.yml)
+
 A server-side SEP-10 authentication adapter that brings authenticated Stellar
 anchor flows to USSD and SIM Toolkit sessions on feature phones.
 

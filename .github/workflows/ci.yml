@@ -1,0 +1,52 @@
+# Offline checks only: install, typecheck, unit and simulated integration
+# tests. Nothing here touches the network, testnet, the anchor, or the
+# gateway, and nothing here needs a secret.
+#
+# The live testnet and sandbox suites stay flag gated and out of CI on
+# purpose. They spend a funded sponsor account and depend on three third
+# party services being up, so a red check would usually mean "testnet was
+# busy", not "this pull request is broken". Their evidence standard is a
+# recorded run with transaction hashes in EVIDENCE.md, which a CI green
+# light does not improve on.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: install, typecheck, offline tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # 22 is the minimum this package declares in engines. Testing the
+      # floor rather than the newest release is deliberate: a contributor
+      # on the documented minimum should get the same result as CI.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # The repository must never carry key material. Stellar secret seeds
+      # are S followed by 55 characters from a fixed alphabet; this is the
+      # same check the weekly verification checklists ask a reviewer to run
+      # by hand, enforced on every pull request.
+      - name: no Stellar secret seed in the tree
+        run: |
+          if git grep -nIE '\bS[A-Z2-7]{55}\b'; then
+            echo "::error::a Stellar secret seed shaped string is present in the tree"
+            exit 1
+          fi
+          echo "clean: no secret seed shaped string found"
