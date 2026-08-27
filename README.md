@@ -92,6 +92,11 @@ npm run test:e2e
 The e2e run prints stellar.expert links for every transaction it submits.
 `.env` is gitignored — never commit it.
 
+If the testnet has been reset since the evidence in `EVIDENCE.md` was
+recorded, `npm run sponsor:recover` recreates and funds a sponsor and
+replays the Week 1 transactions in one step. See `docs/sponsor-account.md`
+for the sponsor account of record and where its key lives.
+
 ## Licence
 
 MIT. See LICENSE.

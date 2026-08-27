@@ -506,4 +506,6 @@ production deployment must address them; the sprint does not.
 ## Testnet quickstart
 
 See the README quickstart. Everything in this repository targets testnet
-only; mainnet operation is out of scope and unvalidated.
+only; mainnet operation is out of scope and unvalidated. For the sprint's
+sponsor account of record, its key custody, and recovery after a testnet
+reset, see `docs/sponsor-account.md`.
