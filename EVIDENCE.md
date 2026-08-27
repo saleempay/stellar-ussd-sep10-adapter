@@ -464,3 +464,186 @@ RUN_TESTNET_E2E=1 npx vitest run test/integration/sep10.e2e.test.ts --no-file-pa
 Each run creates a fresh account, authenticates it, and prints the
 exchange statuses; `npm run test:e2e` runs the Week 1 and Week 2 live
 tests together.
+
+# Evidence: Week 3 (USSD session layer, live Africa's Talking sandbox)
+
+## What this file section proves, in plain language
+
+On 23 August 2026 (UTC) a real USSD session, driven in Africa's Talking's
+sandbox simulator against their live sandbox gateway, walked the whole
+Week 3 journey: dial in, set a PIN, create a sponsored Stellar account on
+the public testnet, enter the PIN again, authenticate with a live anchor
+over SEP-10, and start a SEP-6 deposit, with the confirmation shown on
+the phone screen. The recorded final callback was then replayed byte for
+byte, and a forged variant of it was sent too. Both were refused and the
+authentication count stayed at exactly one. Everything below is captured
+from the real exchanges; the flag gated test asserted, before writing
+anything, that no PIN digits and no unmasked live MSISDN appear in the
+capture.
+
+**Masking, stated:** the simulator required a real format Kenyan number,
+so a synthetic, clearly unassigned one was used (+254 700 000 000, no
+real person's number at any point) and is still masked to `+2547***0000`
+in the transcript; every PIN position and PIN value is replaced by
+`####`; JWT signature segments and anchor URL tokens are redacted. The
+ephemeral tunnel URL is not recorded anywhere (tunnels die with the
+session; the URL is configuration, not evidence).
+
+## Setup
+
+| Item | Value |
+|---|---|
+| Gateway | Africa's Talking sandbox, shared code channel `*384*45210#` (created for this run; the callback URL points at an ephemeral tunnel and is dead after the session) |
+| Simulator | developers.africastalking.com/simulator, connected as the synthetic MSISDN |
+| Sponsor (throwaway) | `GDUPCDULD5YSYRWZS6L7JKA4SWFC3UMYTGCVZ7SIIJIU4D25DRMS7UL7`, friendbot funding tx `a803f67b0f6f4ebef0c757e5369cfc75ad52be0ee433326b691345430b813320` |
+| Anchor | testanchor.stellar.org (toml resolved at startup: WEB_AUTH_ENDPOINT `https://testanchor.stellar.org/auth`, TRANSFER_SERVER `https://testanchor.stellar.org/sep6`) |
+| Session config | store TTL 120 s, per leg timeout 2.5 s, watchdog 8.5 s |
+| Raw capture | `test-output/ussd-sandbox-evidence.json` (gitignored; masked at write time) |
+
+## The live session transcript (masked)
+
+Three gateway sessions, exactly as they happened. The first two ended in
+the gateway's inactivity timeout while the operator (a browser automation
+loop with tool round trips between steps) was too slow between inputs;
+they are kept because they are real and because they carry the timeout
+measurement below. The third completed the journey. `text` is the
+gateway's cumulative input field.
+
+| At (UTC) | Session | text | Response (first line) |
+|---|---|---|---|
+| 20:46:39.658Z | A | (dial) | `CON Saleem Stellar test` |
+| 20:47:04.056Z | A | `1` | `CON Create a 4 digit PIN` |
+| 20:47:24.169Z | A | `1*####` | `CON Enter the PIN again` |
+| 20:48:08.535Z | B | (dial) | `CON Saleem Stellar test` |
+| 20:48:26.294Z | B | `1` | `CON Create a 4 digit PIN` |
+| 20:48:43.734Z | B | `1*####` | `CON Enter the PIN again` |
+| 20:48:49.501Z | B | `1*####*####` | `CON PIN saved` |
+| 20:49:08.550Z | B | `1*####*####*1` | `CON Account ready` (on-chain creation inside this callback) |
+| 20:50:26.116Z | C | (dial) | `CON Saleem Stellar test` |
+| 20:50:33.186Z | C | `1` | `CON Enter your PIN` (returning user: mapping + trustline preflight passed) |
+| 20:50:51.626Z | C | `1*####` | `END Signed in as GD2B..PXQ7 / Deposit started / Ref 5a26b6f1` |
+
+Machine state transitions (structured log, state names only, no user
+input): welcome > pinSetup1 > pinSetup2 > accountPrompt > pinEnter
+(session B), then welcome > pinEnter > done (session C), with
+`event=accountCreated` and `event=journeyComplete` at the marked steps.
+
+## On-chain: sponsored account creation (session B, callback 5)
+
+- Account: `GD2BJGDAWYQP4AQXNRWO5AMGZ33A22W3TXM5DJERQB7H3ALNVVC5PXQ7`
+- Creation tx: `ae18582eb28446096fa129cbc77d1f5ef70dcc7d322f512a2e77e5e634db72ce`
+  (https://stellar.expert/explorer/testnet/tx/ae18582eb28446096fa129cbc77d1f5ef70dcc7d322f512a2e77e5e634db72ce)
+- Raw Horizon excerpt (`/transactions/{hash}`, retrieved after the run):
+
+```json
+{
+  "id": "ae18582eb28446096fa129cbc77d1f5ef70dcc7d322f512a2e77e5e634db72ce",
+  "successful": true,
+  "ledger": 4299047,
+  "created_at": "2026-08-23T20:49:12Z",
+  "source_account": "GDUPCDULD5YSYRWZS6L7JKA4SWFC3UMYTGCVZ7SIIJIU4D25DRMS7UL7",
+  "fee_charged": "400",
+  "operation_count": 4
+}
+```
+
+- Account state after the run: 0 XLM native balance, SRT trustline
+  present and sponsored, `num_sponsored: 3`. Identical shape to the
+  Week 1 measurements (four operation sponsorship sandwich, 400 stroops).
+
+## The anchor operation: authenticated SEP-6 deposit initiation
+
+The final callback of session C ran, inside one gateway window: the
+atomic signing claim, SEP-10 (challenge GET at 20:50:51.724Z, token POST
+at 20:50:52.812Z, both HTTP 200, one signature through the signer seam,
+`assertTokenScope` re-checked before use), then:
+
+- `GET https://testanchor.stellar.org/sep6/deposit?asset_code=SRT&account=GD2B...PXQ7&type=bank_account`
+  with the bearer JWT at 20:50:53.129Z: HTTP 200, transaction id
+  `5a26b6f1-7b05-474c-9fe7-c8c0bd1c0048`.
+- The END screen showed the first 8 characters (`Ref 5a26b6f1`), within
+  the 160 character budget.
+- Independent read back with the same JWT,
+  `GET /sep6/transaction?id=5a26b6f1-7b05-474c-9fe7-c8c0bd1c0048`:
+  HTTP 200, `{"transaction": {"id": "5a26b6f1-7b05-474c-9fe7-c8c0bd1c0048",
+  "kind": "deposit", "status": "incomplete", ...}}` (URL token in
+  `more_info_url` redacted). `incomplete` is the anchor's correct status
+  for a deposit initiated but not funded; no funds move in this sprint.
+- For contrast, Phase 0 of this session verified the same endpoint
+  answers HTTP 403 with no token.
+
+## Replay attempts rejected (the SOW expected output)
+
+Performed by the flag gated test itself against the live handler,
+seconds after the confirmation:
+
+| At (UTC) | What was sent | Result | Journey count |
+|---|---|---|---|
+| 20:50:54.893Z | Session C's final callback, byte for byte | HTTP 200, the identical cached END screen; `event=cacheHit`; nothing re-executed | still 1 |
+| 20:50:54.895Z | Forged variant: same session, last input changed to `0000` | `END This step was already completed`; `event=replay state=done` | still 1 |
+
+The signing claim is atomic in the session store, so even without the
+response cache a concurrent duplicate cannot produce a second signature;
+the unit suite proves that under 50 simultaneous claims.
+
+## Measured, not quoted: the gateway inactivity timeout
+
+No authoritative published number exists for the sandbox inactivity
+timeout (it is telco dependent in production). Observed in this run, from
+the gateway's own session log (three rows for `*384*45210#`: 45 s and
+65 s Incomplete, 29 s Success) against our callback timestamps:
+
+- Session A died on an input gap after its 20:47:24 callback; the
+  simulator reported expiry roughly 30 to 40 seconds later.
+- Session B died on an input gap after its 20:49:08 callback (gateway
+  recorded 65 s total duration, 5 hops).
+- Session C, driven with all gaps under about 20 seconds, completed.
+
+Working conclusion: the sandbox expires a session after roughly 30 to 60
+seconds without user input. The reference store's 120 second absolute
+TTL therefore never binds first in practice; the gateway always wins.
+
+## Gateway side corroboration
+
+The provider dashboard session log (Sessions page, sandbox app) shows
+exactly three sessions for `*384*45210#`, matching the transcript:
+3 hops / 45 s / Incomplete, 5 hops / 65 s / Incomplete, 3 hops / 29 s /
+Success. (Dashboard timestamps render in the viewer's local timezone;
+the UTC times of record are the ones in the transcript above.)
+
+## Reconciliation note: the routing outage before the run
+
+Honest record of what did not work. From the first dial attempts
+(roughly 20:00Z) until shortly before 20:46Z, every dial to BOTH
+channels on this account, including channel `*384*43808#` which
+demonstrably worked on 20 August per the same dashboard log, returned
+the gateway's generic landing message ("You have reached Africa's
+Talking USSD Services..."), no callback reached the tunnel, and no
+session row was logged; simulator.africastalking.com answered HTTP 503
+and the provider status page showed "Partially Degraded Service" (USSD
+and Sandbox components nominally operational). The condition cleared on
+its own; the first routed dial is session A above. Nothing was changed
+on our side between the failing and succeeding dials except time.
+
+## Protocol 28 re-verification: carried to Week 4, explicitly
+
+Testnet upgrades to Protocol 28 on 27 August 2026. This Week 3 session
+closed before the upgrade, so the promised post-upgrade re-verification
+run (re-run the Week 1 and Week 2 flag gated e2e suites, record results
+with timestamps and any new transaction hashes in a dated subsection
+here, and state plainly whether anything changed) is CARRIED TO WEEK 4.
+All evidence above predates the upgrade; the transactions are classic
+operations and their hashes remain valid history either way.
+
+## How to reproduce (Week 3)
+
+```
+npm install
+node scripts/setup-sponsor.mjs   # fund a throwaway testnet sponsor
+# copy the two printed lines into .env (never commit .env)
+# expose the port through an ephemeral tunnel and set the sandbox
+# USSD channel callback to <tunnel>/ussd/callback, then:
+USSD_E2E_WAIT_MINUTES=30 npm run test:e2e:ussd
+# drive the journey in the provider's web simulator; the test finishes,
+# replays the final callback, and writes the masked evidence JSON.
+```

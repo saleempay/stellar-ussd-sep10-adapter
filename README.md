@@ -37,7 +37,7 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-**Week 2 of 4 delivered** (sprint started 10 August 2026, targeting a first
+**Week 3 of 4 delivered** (sprint started 10 August 2026, targeting a first
 public release with a working USSD authentication flow against Stellar
 testnet):
 
@@ -58,8 +58,17 @@ testnet):
   the JWT on an authenticated SEP-6 endpoint, is recorded in
   [EVIDENCE.md](EVIDENCE.md) with the full HTTP transcript.
 
-Not yet built (later sprint weeks): the USSD session layer with PIN
-consent (Week 3) and the demo and evidence packaging (Week 4). Everything
+- **USSD session layer** (Week 3): menu flow within the gateway
+  character budget, PIN consent verified against an scrypt hash and never
+  transmitted onward, a short lived session store whose atomic single use
+  signing claim rejects replays, plain language error screens (timeout,
+  missing trustline, auth refusal, lockout), and a thin gateway adapter
+  seam with an Africa's Talking reference implementation, tested against
+  the provider's sandbox. See
+  [docs/integration-guide.md](docs/integration-guide.md) and
+  [EVIDENCE.md](EVIDENCE.md).
+
+Not yet built (Week 4): the demo and evidence packaging. Everything
 targets **testnet only**.
 
 ## Quickstart (testnet)
