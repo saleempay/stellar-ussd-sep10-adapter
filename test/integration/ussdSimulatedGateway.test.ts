@@ -175,7 +175,9 @@ describe('simulated gateway over HTTP', () => {
       'CON Account ready\nEnter your PIN',
     );
     const confirm = await fixture.post(atFields(S, `1*${PIN}*${PIN}*1*${PIN}`));
-    expect(confirm.body).toBe('END Signed in as GAA3..EAFM\nDeposit started\nRef dep12345');
+    expect(confirm.body).toBe(
+      'END Signed in as GAA3..EAFM\nVerified by the anchor. Test only, no funds move\nRef dep12345',
+    );
     expect(confirm.hop).toBe('confirm');
     expect(fixture.journey.createCalls).toBe(1);
     expect(fixture.journey.authCalls).toBe(1);
@@ -190,7 +192,7 @@ describe('simulated gateway over HTTP', () => {
     await fixture.post(atFields(S, `1*${PIN}*${PIN}`));
     await fixture.post(atFields(S, `1*${PIN}*${PIN}*1`));
     const first = await fixture.post(atFields(S, `1*${PIN}*${PIN}*1*${PIN}`));
-    expect(first.body).toContain('Deposit started');
+    expect(first.body).toContain('Verified by the anchor. Test only, no funds move');
 
     // The replay: same session id, same cumulative text, re-POSTed.
     const replay = await fixture.post(atFields(S, `1*${PIN}*${PIN}*1*${PIN}`));
@@ -266,7 +268,7 @@ describe('simulated gateway over HTTP', () => {
     // cache; a gateway retry of the same callback gets the true outcome.
     await new Promise((r) => setTimeout(r, 800));
     const retry = await fixture.post(atFields(S, `1*${PIN}*1*${PIN}`));
-    expect(retry.body).toContain('Deposit started');
+    expect(retry.body).toContain('Verified by the anchor. Test only, no funds move');
     expect(fixture.journey.authCalls).toBe(1);
   });
 

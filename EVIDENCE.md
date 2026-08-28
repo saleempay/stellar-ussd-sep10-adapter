@@ -899,3 +899,28 @@ What that does and does not leave open, stated precisely:
 
 When the operator drives the journey, its result will be appended below
 this line, in a dated subsection, whatever the outcome.
+
+## Confirmation screen wording changed before the demo recording (29 August 2026)
+
+The END confirmation screen used to read `Deposit started`. On testnet,
+against a deposit the anchor itself reports as `incomplete`, that
+overstated what happened, so it was changed for accuracy before the demo
+video was recorded. It now reads:
+
+```
+END Signed in as GXXX..XXXX
+Verified by the anchor. Test only, no funds move
+Ref XXXXXXXX
+```
+
+shown here at the longest possible runtime values: 89 characters including
+the `END ` prefix, against the 160 character budget. The account fragment
+and the reference remain runtime values, unchanged in how they are
+derived.
+
+**This means the Week 3 transcript above and the recorded video differ by
+this one line, and that difference is intended.** The Week 3 section
+records `Deposit started` because that is what the software rendered
+during the live session on 23 August, and it is append only history that
+has not been edited. The video shows the corrected wording because it was
+recorded afterwards. Nothing else about the journey changed.

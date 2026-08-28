@@ -68,7 +68,7 @@ minutes.
 | 5 | PIN saved | `CON PIN saved` / `1. Create your account and continue` | "The PIN is now stored as an scrypt hash. The digits themselves are gone." |
 | 6 | Account creation | `CON Account ready` | "In the second it took to answer, a Stellar account was created on the public test network, with its minimum balances paid by an operator account. The user's account holds nothing and cost the user nothing." |
 | 7 | Second dial | `CON Saleem Stellar test`, then `CON Enter your PIN` after choosing 1 | "Dialling again, the service recognises the number and goes straight to the PIN. This is the returning user path." |
-| 8 | The confirmation | `END Signed in as GD2B..PXQ7` / `Deposit started` / `Ref 5a26b6f1` (see the wording flag below) | "Behind that one screen: the anchor issued an authentication challenge, the adapter checked it, signed it, and exchanged it for a session token, then used that token to start an anchor operation. The reference on screen is the anchor's own record." |
+| 8 | The confirmation | `END Signed in as GD2B..PXQ7` / `Verified by the anchor. Test only, no funds move` / `Ref 5a26b6f1` | "Behind that one screen: the anchor issued an authentication challenge, the adapter checked it, signed it, and exchanged it for a session token, then used that token to start an anchor operation. The reference on screen is the anchor's own record." |
 | 9 | Terminal, the run completing | The test's captured exchanges printing, including the SEP-10 challenge and token legs both HTTP 200 | "Every step was recorded as it happened." |
 | 10 | Terminal, replay rejected | The replayed callback answering with the identical cached screen, and the forged variant answering `END This step was already completed`, with the journey count still 1 | "The final step was then sent again, byte for byte, and a tampered version was sent too. Neither produced a second signature. The count stays at one." |
 | 11 | The anchor's own record | The browser or terminal showing the SEP-6 read back (see below) | "And this is the anchor's side of the story, not ours." |
@@ -113,63 +113,39 @@ should name all three:
 anchor saying the deposit was initiated and not funded, which is exactly
 what happened: no funds move anywhere in this sprint.
 
-## Flagged for the operator: the END screen says "Deposit started"
+## Resolved: the END screen wording was changed (approved 29 August 2026)
 
-**This is a recommendation and nothing has been changed. The wording
-below needs approval before it goes into the code.**
+This section previously flagged the confirmation screen, which read
+`Deposit started`, and proposed a replacement. **The change was approved
+and applied**, so the shot list above shows the new text and the recording
+should show it too.
 
-The confirmation screen currently renders:
-
-```
-END Signed in as GD2B..PXQ7
-Deposit started
-Ref 5a26b6f1
-```
-
-"Deposit started" overstates what happened. On testnet, with a deposit the
-anchor itself reports as `incomplete`, nothing was deposited and no funds
-moved. For a reviewer who is not a developer, "Deposit started" is the
-single most likely line in the whole demo to be read as "money moved",
-and it is the line that stays on screen longest.
-
-**Recommendation: change it before recording.** A plainer word is both
-more accurate and better for the review audience, and it removes the need
-for the narration to talk the viewer out of what the screen just said.
-
-Proposed replacement text:
+The screen now renders, at the longest possible runtime values:
 
 ```
-Signed in as {short account}
+END Signed in as GXXX..XXXX
 Verified by the anchor. Test only, no funds move
-Ref {deposit ref}
+Ref XXXXXXXX
 ```
 
-At the longest possible dynamic values this renders 89 characters
-including the `END ` prefix, against the 160 character budget, so it fits
-with room to spare (current text: 56).
+89 characters including the `END ` prefix, against the 160 character
+budget, asserted by name in `test/unit/ussdScreens.test.ts` rather than
+only at the example length. The account fragment and the reference are
+still runtime values, derived exactly as before.
 
-What changing it costs: one line in `src/ussd/menu/screens.ts` and eight
-assertions across `test/unit/ussdMachine.test.ts`,
-`test/integration/ussdSimulatedGateway.test.ts` and
-`test/integration/ussdSandbox.e2e.test.ts`. Roughly fifteen minutes
-including a full suite run.
+Why it changed: on testnet, against a deposit the anchor itself reports as
+`incomplete`, "Deposit started" was the line most likely to be read as
+"money moved", and it was the line on screen longest. The new wording
+states what was actually achieved and says plainly that nothing moved, so
+the narration no longer has to talk the viewer out of what the screen just
+said.
 
-**One consequence to accept deliberately.** The Week 3 transcript in
+**One intended difference to expect.** The Week 3 transcript in
 `EVIDENCE.md` records the old wording, because that is what the live
-session actually rendered on 23 August. `EVIDENCE.md` is append only and
-will not be edited. So if the wording changes, the demo video and the
-Week 3 transcript will show different text for the same screen. That is
-fine and is the honest outcome, but it needs one sentence in the Week 4
-evidence section saying the screen text was improved after the Week 3 run,
-so a reviewer comparing the two is not left wondering.
-
-**Suggested sequence:** run the Protocol 28 re-verification first against
-the code exactly as merged, then change the wording, then record. That
-keeps the re-verification a clean test of the merged code and still gives
-the video the better text.
-
-If the wording is not approved, record as is and have the narration say,
-over shot 8, that this is a testnet demonstration and no funds move.
+session rendered on 23 August, and that file is append only history. The
+video will show the new wording. A dated note in the Week 4 section of
+`EVIDENCE.md` records this so a reviewer comparing the two is not left
+wondering.
 
 ## What the video must not claim
 

@@ -138,7 +138,7 @@ describe('menu machine: happy paths', () => {
     expect((await h.send(['1'])).text).toBe('Enter your PIN');
     const confirm = await h.send(['1', PIN]);
     expect(confirm.kind).toBe('end');
-    expect(confirm.text).toContain('Deposit started');
+    expect(confirm.text).toContain('Verified by the anchor. Test only, no funds move');
     expect(h.journey.createCalls).toBe(0);
     expect(h.journey.authCalls).toBe(1);
   });
@@ -305,7 +305,7 @@ describe('menu machine: replay and duplicates', () => {
     const [a, b] = await Promise.all([h.send(['1', PIN]), h.send(['1', PIN])]);
     const texts = [a.text, b.text].sort();
     expect(h.journey.authCalls).toBe(1);
-    expect(texts.filter((t) => t.includes('Deposit started'))).toHaveLength(1);
+    expect(texts.filter((t) => t.includes('Verified by the anchor. Test only, no funds move'))).toHaveLength(1);
   });
 });
 
@@ -457,7 +457,7 @@ describe('menu machine: weak PIN rejection at setup (F4)', () => {
     await h.send(['1']);
     const confirm = await h.send(['1', '1234']);
     expect(confirm.kind).toBe('end');
-    expect(confirm.text).toContain('Deposit started');
+    expect(confirm.text).toContain('Verified by the anchor. Test only, no funds move');
     expect(h.journey.authCalls).toBe(1);
   });
 });
