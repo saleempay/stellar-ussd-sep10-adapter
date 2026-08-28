@@ -924,3 +924,151 @@ records `Deposit started` because that is what the software rendered
 during the live session on 23 August, and it is append only history that
 has not been edited. The video shows the corrected wording because it was
 recorded afterwards. Nothing else about the journey changed.
+
+## Week 3 USSD journey re-run under Protocol 28 (28 August 2026)
+
+The Week 4 section above left one item outstanding: the live gateway
+journey had been re-verified only as far as the two flows underneath it.
+This is that re-run, completed on the upgraded network. It also carries
+the first live rendering of the corrected confirmation screen.
+
+**Result: the journey completed end to end and both replay attempts were
+refused, exactly as in Week 3.**
+
+### Setup
+
+| Item | Value |
+|---|---|
+| Gateway | Africa's Talking sandbox, shared code channel `*384*45210#` |
+| Simulator MSISDN | masked `+2547***0111` (synthetic, sandbox only) |
+| Callback | ephemeral tunnel, dead after the session; the path is a capability credential and is not recorded here |
+| Sponsor (throwaway) | `GCVTPY7B6RNGEGV5W5FANFV5DSZ76IQ3LZWARG67NSWA24BLZFHSAON7` |
+| Anchor | testanchor.stellar.org |
+| Network | Stellar testnet at **Protocol 28** |
+
+### The live session transcript (masked)
+
+Two gateway sessions. The first enrolled the user and created the account
+on chain, then expired on the gateway's inactivity timeout before the PIN
+could be entered. The second completed the journey by the returning user
+path. Both are real and both are kept.
+
+| At (UTC) | Session | text | Response |
+|---|---|---|---|
+| 21:44:09.221Z | A | (dial) | `CON Saleem Stellar test` |
+| 21:44:22.618Z | A | `1` | `CON Create a 4 digit PIN` |
+| 21:44:32.829Z | A | `1*####` | `CON Enter the PIN again` |
+| 21:44:43.498Z | A | `1*####*####` | `CON PIN saved` |
+| 21:44:57.181Z | A | `1*####*####*1` | `CON Account ready / Enter your PIN` (on-chain creation inside this callback) |
+| 21:49:43.511Z | B | (dial) | `CON Saleem Stellar test` |
+| 21:49:53.576Z | B | `1` | `CON Enter your PIN` (returning user: mapping and trustline preflight passed) |
+| 21:50:04.344Z | B | `1*####` | `END Signed in as GBHN..AXYY / Verified by the anchor. Test only, no funds move / Ref 15fbd333` |
+
+Machine state transitions (structured log, state names only, no user
+input): `welcome > pinSetup1 > pinSetup2 > accountPrompt` with
+`event=accountCreated` at 21:45:02.374Z (session A), then
+`welcome > pinEnter > done` with `event=journeyComplete` at 21:50:06.929Z
+(session B).
+
+**Disclosure about the capture.** Seven entries in the raw captured
+transcript are `404 not found` responses at 21:42:32, 21:43:38, 21:45:39,
+21:47:41 and 21:49:42. None of them is gateway traffic. They are this
+session's own diagnostic requests and an automated reachability probe
+running on a fixed two minute cadence against the callback URL, which the
+handler correctly refuses because they are not POSTs from the gateway.
+They are named here rather than quietly filtered out of the table above.
+
+### The corrected confirmation screen, rendered live
+
+This is the first live gateway rendering of the wording approved on
+29 August. The screen the user saw, in full:
+
+```
+END Signed in as GBHN..AXYY
+Verified by the anchor. Test only, no funds move
+Ref 15fbd333
+```
+
+The Week 3 transcript earlier in this file records the old `Deposit
+started` wording, because that is what the software rendered on
+23 August. Both are accurate for their own run.
+
+### On-chain: sponsored account creation (session A)
+
+- Account: `GBHNKB7LMIW2GMZWV4PJRKLBRUJPTSBHC7OUBCWOJXOYEMTGKRFYAXYY`
+- Creation tx: `72579ced85d25b0aeea8598f513b334ab5f09bc70f7c065ccbe5a2f7609fd12f`
+  (https://stellar.expert/explorer/testnet/tx/72579ced85d25b0aeea8598f513b334ab5f09bc70f7c065ccbe5a2f7609fd12f)
+
+Raw Horizon excerpt (`GET /transactions/{hash}`):
+
+```json
+{
+  "id": "72579ced85d25b0aeea8598f513b334ab5f09bc70f7c065ccbe5a2f7609fd12f",
+  "successful": true,
+  "ledger": 4385983,
+  "created_at": "2026-08-28T21:45:02Z",
+  "source_account": "GCVTPY7B6RNGEGV5W5FANFV5DSZ76IQ3LZWARG67NSWA24BLZFHSAON7",
+  "fee_charged": "400",
+  "operation_count": 4
+}
+```
+
+`GET /ledgers/4385983`: `"protocol_version": 28`. Operations, in order:
+`begin_sponsoring_future_reserves`, `create_account`, `change_trust`
+(SRT), `end_sponsoring_future_reserves`. Account state read back:
+**0 XLM**, SRT trustline present, `num_sponsored: 3`, one signer.
+
+This is the first USSD originated account creation recorded under
+Protocol 28.
+
+### The anchor operation, inside one gateway window
+
+All three legs ran inside the final callback of session B:
+
+| At (UTC) | Leg | Result |
+|---|---|---|
+| 21:50:04.430Z | SEP-10 challenge `GET /auth` | HTTP 200 |
+| 21:50:05.383Z | SEP-10 signed challenge `POST /auth` | HTTP 200, token issued |
+| 21:50:05.661Z | SEP-6 `GET /sep6/deposit?asset_code=SRT` with the bearer token | HTTP 200, transaction id `15fbd333-3204-41b9-ba1e-c54e6d6bef1f` |
+
+The END screen showed the first 8 characters, `Ref 15fbd333`.
+
+Independent read back with the same token,
+`GET /sep6/transaction?id=15fbd333-3204-41b9-ba1e-c54e6d6bef1f`: HTTP 200,
+
+```json
+{
+  "id": "15fbd333-3204-41b9-ba1e-c54e6d6bef1f",
+  "kind": "deposit",
+  "status": "incomplete",
+  "to": "GBHNKB7LMIW2GMZWV4PJRKLBRUJPTSBHC7OUBCWOJXOYEMTGKRFYAXYY",
+  "started_at": "2026-08-28T21:50:05.834540Z"
+}
+```
+
+(`more_info_url` omitted: it carries a URL token.) `incomplete` is the
+anchor's correct status for a deposit initiated and not funded. No funds
+move. Note that the anchor's own `to` field names the account the session
+created, which is the anchor confirming, in its own record, which account
+it authenticated.
+
+### Replay attempts rejected
+
+Performed by the flag gated test itself against the live handler, seconds
+after the confirmation:
+
+| At (UTC) | What was sent | Result | Journey count |
+|---|---|---|---|
+| 21:50:07.764Z | Session B's final callback, byte for byte | HTTP 200, the identical cached END screen; `event=cacheHit`; nothing re-executed | still 1 |
+| 21:50:07.769Z | Forged variant: same session, last input changed to `0000` | `END This step was already completed`; `event=replay state=done` | still 1 |
+
+### What this run adds
+
+- The gateway leg is now re-verified under Protocol 28, closing the item
+  the Week 4 section left open. Nothing behaved differently from Week 3.
+- The corrected confirmation wording is proven on a live gateway, not
+  only in tests.
+- The two session shape is the same one Week 3 recorded, for the same
+  reason: the inactivity window is too short to enrol and authenticate in
+  one dial when an on chain account creation sits in the middle. That is a
+  real property of the channel, recorded rather than hidden.

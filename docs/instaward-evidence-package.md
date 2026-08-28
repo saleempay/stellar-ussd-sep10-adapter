@@ -137,7 +137,8 @@ viewer of the Stellar test network that we do not control.
 | 15 | Replay attempts were refused | Open [EVIDENCE.md](../EVIDENCE.md), Week 3 section, "Replay attempts rejected" | The final step re-sent byte for byte returned the identical cached screen and re-ran nothing; a tampered version returned "This step was already completed". The authentication count stayed at **1** in both cases |
 | 16 | The software still works after Stellar's Protocol 28 upgrade | Open [EVIDENCE.md](../EVIDENCE.md), Week 4 section, "Did anything change under Protocol 28?" | A thirteen row table comparing before and after, every row reading "no". The test network upgraded on 27 August 2026 and the same software, unchanged, produced identical results |
 | 17 | That claim rests on a transaction in an upgraded ledger, not on timing | Click <https://stellar.expert/explorer/testnet/tx/1f254c6075ed2df67ed47d10b0bc00e52ad8b63b69c3813f79f511a350fcbff6> | A successful transaction in ledger **4365303**, **27 August 2026 at 17:01 UTC**, 4 operations, created after the upgrade took effect at 17:00:57 UTC |
-| 18 | The whole test suite passes from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && npm install && npm test` (needs Node.js 22 or newer) | A final line reporting **350 passed, 3 skipped**. The 3 skipped are the live network tests, which are off by default because they spend a funded account |
+| 18 | The phone journey still works after the upgrade, replays still refused | Open [EVIDENCE.md](../EVIDENCE.md), "Week 3 USSD journey re-run under Protocol 28" | A masked transcript of two real sessions on 28 August 2026 ending in `Verified by the anchor. Test only, no funds move`, the anchor's own record of the deposit read back, and both replay attempts refused with the authentication count still **1** |
+| 19 | The whole test suite passes from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && npm install && npm test` (needs Node.js 22 or newer) | A final line reporting **352 passed, 3 skipped**. The 3 skipped are the live network tests, which are off by default because they spend a funded account |
 
 ---
 
@@ -175,19 +176,37 @@ changed. For completeness:
 - The Stellar test network upgraded to Protocol 28 on 27 August 2026. The
   evidence file had promised in writing that the live flows would be run
   again afterwards and the result stated plainly either way. They were,
-  and nothing changed (rows 16 and 17).
+  and nothing changed (rows 16 and 17). The full phone journey was then
+  re-run on the upgraded network on 28 August and behaved identically,
+  replay refusals included.
+- The confirmation screen used to read "Deposit started". On testnet,
+  against a deposit the anchor itself reports as incomplete, that
+  overstated what happens, so it was changed to say plainly that nothing
+  moved. The Week 3 transcript keeps the old wording because that is what
+  the software rendered that day; the difference is intended and is noted
+  in the evidence file.
 
 ## Verification of this document
 
 Every link and every transaction hash printed in this document was
 checked against the live services at assembly time.
 
-**Checked on 27 August 2026.** All 18 rows resolve. The 8 transaction
-hashes referenced across this package were each fetched from Horizon, the
-Stellar network's public API, and each returned a successful transaction
-with the ledger number and date printed here. The 3 accounts were fetched
-and each returned a 0 XLM balance with the SRT trustline present, as
-stated.
+**Checked on 27 August 2026, extended 28 August 2026.** All 19 rows
+resolve.
+
+- Every link in this document was followed and returned a page, with the
+  single exception named below.
+- The **5 transaction hashes** this document links to were each fetched
+  from Horizon, the Stellar network's public API, and each returned a
+  successful transaction matching the ledger number and date printed here.
+- The **1 account** this document links to returned a zero balance with
+  the SRT trustline present, as stated.
+- Going wider than this document: `EVIDENCE.md` contains **14** strings of
+  the shape a transaction hash takes. **13 are transactions and all 13
+  were fetched and confirmed successful.** The fourteenth,
+  `629fb701...`, is not a transaction hash at all: it is the identifier
+  inside the Week 2 session token, and it is quoted there as part of the
+  decoded token rather than as a network record.
 
 One deliberate exception: `https://testanchor.stellar.org/auth` answers
 HTTP 400 when opened in a browser with no parameters. That is the correct
@@ -209,7 +228,7 @@ it:
 | Statement of Work evidence line | Satisfied by |
 |---|---|
 | Public repository link | Row 1 |
-| MIT licensed repository containing the adapter | Rows 2, 8, 18 |
+| MIT licensed repository containing the adapter | Rows 2, 8, 19 |
 | Commit history across the sprint | Row 3 |
 | Transaction hashes showing account creation, viewable on stellar.expert | Rows 5, 6, 9, 13, 17 |
 | A SEP-10 challenge signed and accepted on testnet | Rows 10, 11 |
@@ -221,7 +240,9 @@ it:
    deliverable and the only item in this package without evidence behind
    it. The plan is written and the recording is an operator step. Until it
    exists, this package is complete on every other line and incomplete on
-   that one.
+   that one. The journey it will show was re-run successfully on the
+   upgraded network on 28 August 2026 and is recorded in
+   [EVIDENCE.md](../EVIDENCE.md), so the recording is the only step left.
 2. **Closed: the Week 3 checklist now carries its clause mapping.** Week 1
    and Week 2 cite the clause each row satisfies in a final column and
    Week 3 did not. The evidence was present and mapped; only the citation
