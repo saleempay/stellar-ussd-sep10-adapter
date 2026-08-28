@@ -39,45 +39,62 @@ A session that times out shows `END Session expired. Dial again to start
 over`, which is a real screen and not a failure of the software, but it
 is not the take you want.
 
-## The journey is two dials, and that is honest
+## Reconciled to the two runs that actually happened (28 August 2026)
 
-Enrolment and sign in are separate dials in the recording, exactly as in
-the live run in `EVIDENCE.md`:
+This plan originally described an idealised single journey. Two real runs
+have since been captured against the sandbox on the upgraded network, and
+the shot list below now matches them rather than an imagined take. Both
+are recorded in the Week 4 section of `EVIDENCE.md`.
 
-- **Dial 1 (enrolment):** set a PIN, create the Stellar account on chain.
-  Account creation happens inside a callback and takes real time.
-- **Dial 2 (returning user):** enter the PIN, authenticate with the
-  anchor, complete the anchor operation.
+| | Run 1, first time user | Run 2, returning user |
+|---|---|---|
+| Inputs | dial, 1, PIN, PIN again, 1 | dial, 1, PIN |
+| Span | 48.0 s | 20.8 s |
+| Server work mid session | 5.19 s on-chain account creation | 2.58 s authenticate and anchor call |
+| Outcome | account created on chain, then the session expired on the gateway inactivity timer before the PIN could be entered | completed, confirmation rendered on the handset |
 
-Fitting both into one session would mean racing the telco's inactivity
-window with an on chain account creation in the middle. Splitting them is
-what a real user experiences the first time, and the narration should say
-so plainly rather than hide it.
+Run 1 did **not** reach a confirmation screen. Its account creation
+succeeded and is on chain, but the journey ended at `Enter your PIN`. Run
+2 then signed in as the account Run 1 had created, and produced the
+confirmation.
+
+## Recommendation: narrate Run 2, the returning user path
+
+**Record the returning user path.** Three inputs, twenty seconds, and it
+is the only one of the two that has actually rendered a confirmation on a
+handset. Run 1's path puts a five second on-chain wait in the middle of a
+window measured at roughly 30 to 60 seconds, and it has already timed out
+once on this exact channel. Putting that on camera risks recording a
+failure and burning a take, for the sake of showing four screens that can
+be described in one sentence of narration.
+
+The honest way to cover enrolment without risking it is to state it: the
+narration says the account was created on a previous dial, which is true,
+is what happened, and is also what a real user experiences. If a first
+time enrolment sequence is wanted on camera later, record it as a separate
+short clip that ends at `Account ready`, which is a real screen and a
+real stopping point, rather than trying to carry one session through to
+the confirmation.
 
 ## Shot list
 
-Times are indicative; the whole recording should run three to four
-minutes.
+Times are indicative; the recording should run two to three minutes.
+Shots 1 to 6 are the phone, 7 to 9 are terminal or browser.
 
 | # | Shot | What the viewer sees on screen | Narration point |
 |---|---|---|---|
 | 1 | The dialler | The synthetic number and the service code `*384*45210#` being dialled | "This is a feature phone menu. No app, no smartphone, no key material on the handset." |
 | 2 | Welcome | `CON Saleem Stellar test` / `1. Sign in and deposit` / `2. About` | "The whole interface is text within a 160 character budget, the strictest limit the telcos impose." |
-| 3 | Choose 1, PIN setup | `CON Create a 4 digit PIN` | "First time through, the user sets a PIN. This is consent, not a key: it never leaves the server side and it is stored only as a hash." |
-| 4 | PIN confirm | `CON Enter the PIN again` | Nothing to add; keep it moving. |
-| 5 | PIN saved | `CON PIN saved` / `1. Create your account and continue` | "The PIN is now stored as an scrypt hash. The digits themselves are gone." |
-| 6 | Account creation | `CON Account ready` | "In the second it took to answer, a Stellar account was created on the public test network, with its minimum balances paid by an operator account. The user's account holds nothing and cost the user nothing." |
-| 7 | Second dial | `CON Saleem Stellar test`, then `CON Enter your PIN` after choosing 1 | "Dialling again, the service recognises the number and goes straight to the PIN. This is the returning user path." |
-| 8 | The confirmation | `END Signed in as GD2B..PXQ7` / `Verified by the anchor. Test only, no funds move` / `Ref 5a26b6f1` | "Behind that one screen: the anchor issued an authentication challenge, the adapter checked it, signed it, and exchanged it for a session token, then used that token to start an anchor operation. The reference on screen is the anchor's own record." |
-| 9 | Terminal, the run completing | The test's captured exchanges printing, including the SEP-10 challenge and token legs both HTTP 200 | "Every step was recorded as it happened." |
-| 10 | Terminal, replay rejected | The replayed callback answering with the identical cached screen, and the forged variant answering `END This step was already completed`, with the journey count still 1 | "The final step was then sent again, byte for byte, and a tampered version was sent too. Neither produced a second signature. The count stays at one." |
-| 11 | The anchor's own record | The browser or terminal showing the SEP-6 read back (see below) | "And this is the anchor's side of the story, not ours." |
-| 12 | The explorer | stellar.expert showing the account creation transaction, 4 operations, 0 XLM balance, SRT trustline | "All of it is on the public test network and checkable by anyone." |
+| 3 | Choose 1, PIN prompt | `CON Enter your PIN` | "The service recognises the number and goes straight to the PIN. This account was created on an earlier dial, which is what a real returning user sees." |
+| 4 | PIN entered | (digits masked on screen by the handset) | "The PIN is consent, not a key. It never leaves the server side and is stored only as a hash." |
+| 5 | The confirmation | `END Signed in as GBHN..AXYY` / `Verified by the anchor. Test only, no funds move` / `Ref 15fbd333` | "Behind that one screen: the anchor issued a challenge, the adapter checked it, signed it, and exchanged it for a session token, then used that token to start an anchor operation. Two and a half seconds. The reference on screen is the anchor's own record." |
+| 6 | Hold on the confirmation | The same screen, held | "It says test only, no funds move, because that is exactly what happened." |
+| 7 | Terminal, the run completing | The captured exchanges printing: SEP-10 challenge and token both 200, SEP-6 deposit 200 | "Every step was recorded as it happened." |
+| 8 | Terminal, replay rejected | The replayed callback answering with the identical cached screen, the forged variant answering `END This step was already completed`, journey count still 1 | "The final step was then sent again, byte for byte, and a tampered version too. Neither produced a second signature." |
+| 9 | The anchor's own record, then the explorer | SEP-6 read back showing the deposit `incomplete` for this account, then stellar.expert showing the creation transaction, 4 operations, 0 XLM, SRT trustline | "And this is the anchor's side of the story, not ours. All of it on the public test network, checkable by anyone." |
 
-Shots 9 to 11 are terminal shots, not phone shots. The replay attempt is
-performed by the test itself against the live handler, because a browser
-simulator cannot re-send a raw callback. Do not stage a phone screen for
-it.
+The account creation transaction shown in shot 9 is Run 1's, which is
+correct and worth saying: it is the account Run 2 signed in as.
 
 ## The shot that proves the anchor accepted the token
 

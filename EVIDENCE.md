@@ -1072,3 +1072,64 @@ after the confirmation:
   reason: the inactivity window is too short to enrol and authenticate in
   one dial when an on chain account creation sits in the middle. That is a
   real property of the channel, recorded rather than hidden.
+
+### On-device capture of the confirmation
+
+The confirmation above is also captured from the handset. The simulator
+screenshot is committed at
+`docs/evidence-assets/ussd-confirmation-handset-2026-08-28.jpg`
+(sha256 `44651226182d3ced181293c3e0c906ced03368e77764a9b764077dc14c6f07b0`).
+
+It shows the gateway's own device view rendering:
+
+```
+Signed in as GBHN..AXYY
+Verified by the anchor. Test only, no funds move
+Ref 15fbd333
+```
+
+which is byte for byte the response the server returned at 21:50:04.344Z
+in the transcript above. The same result is therefore evidenced twice and
+independently: on the wire, from the server's captured callback, and on
+the device, from the gateway's rendering of it. Nothing in the image is
+sensitive: the account is already masked by the screen itself, the
+reference is a public anchor transaction id, and no PIN or subscriber
+number is visible.
+
+### Operational finding: the first time path runs close to the gateway window
+
+Recorded as a design note, not a defect. The merged code behaved correctly
+in both sessions; this is about the channel's timing envelope.
+
+Measured from tonight's captured callbacks:
+
+| | Session A, first time | Session B, returning user |
+|---|---|---|
+| Gateway callbacks | 5 | 3 (plus 2 replay probes) |
+| User inputs required | dial, 1, PIN, PIN again, 1 | dial, 1, PIN |
+| Span, first to last callback | **48.0 s** | **20.8 s** |
+| Longest single gap between inputs | 13.7 s | 10.8 s |
+| Server side work inside one callback | **5.19 s** (on-chain sponsored creation) | **2.58 s** (SEP-10 challenge, sign, token, SEP-6 deposit) |
+| Outcome | expired before the PIN could be entered | completed |
+
+Session A spent 48 seconds inside a window measured in Week 3 at roughly
+30 to 60 seconds, and died on the next input gap. Session B finished with
+room to spare. The difference is structural rather than bad luck: the
+first time path needs two more inputs than the returning path, and it
+carries a 5.19 second on-chain account creation in the middle of them.
+
+**Production implication, recorded as a post sprint item.** A deployment
+should not ask a first time user to enrol and transact in a single USSD
+session. Two approaches are open, and neither is in this sprint's scope:
+split onboarding from the spend session, so enrolment ends once the
+account exists and the user dials again to transact, which is what
+happened naturally in both this run and the Week 3 run; or pre-create
+accounts ahead of first use so no on-chain work sits inside a session at
+all.
+
+**This does not affect the correctness of the merged code.** No screen was
+wrong, no state was lost, and the returning user path picked up exactly
+where enrolment left off, using the account and PIN that session A
+established. A session ending on the telco's inactivity timer is the
+channel behaving as documented, and the software renders the correct
+screen for it.
