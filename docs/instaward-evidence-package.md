@@ -201,12 +201,14 @@ resolve.
   successful transaction matching the ledger number and date printed here.
 - The **1 account** this document links to returned a zero balance with
   the SRT trustline present, as stated.
-- Going wider than this document: `EVIDENCE.md` contains **14** strings of
+- Going wider than this document: `EVIDENCE.md` contains **15** strings of
   the shape a transaction hash takes. **13 are transactions and all 13
-  were fetched and confirmed successful.** The fourteenth,
-  `629fb701...`, is not a transaction hash at all: it is the identifier
-  inside the Week 2 session token, and it is quoted there as part of the
-  decoded token rather than as a network record.
+  were re-fetched and confirmed successful at 21:57 UTC on 28 August
+  2026.** The other two are deliberately not transactions and are named
+  here so nobody wastes time looking them up: `629fb701...` is the
+  identifier inside the Week 2 session token, quoted as part of the
+  decoded token, and `44651226...` is the sha256 checksum of the committed
+  handset screenshot.
 
 One deliberate exception: `https://testanchor.stellar.org/auth` answers
 HTTP 400 when opened in a browser with no parameters. That is the correct
