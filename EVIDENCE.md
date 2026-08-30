@@ -681,13 +681,26 @@ while `current_protocol_version` was still 27 and ledgers were still
 closing at protocol 27. A run at that time would have been a protocol 27
 run wearing a Protocol 28 label.
 
-The protocol itself changed at 17:00:57 UTC:
+The protocol itself changed at 17:00:07 UTC:
 
 | Ledger | Protocol | Closed at (UTC) |
 |---|---|---|
-| 4365293 and earlier | 27 | up to 2026-08-27T17:00:52Z |
-| 4365294 | 28 | 2026-08-27T17:00:57Z |
-| 4365295 | 28 | 2026-08-27T17:01:02Z |
+| 4365283 and earlier | 27 | up to 2026-08-27T17:00:02Z |
+| 4365284 | 28 | 2026-08-27T17:00:07Z |
+| 4365285 | 28 | 2026-08-27T17:00:12Z |
+
+**Correction, 30 August 2026.** This table originally placed the switch
+at ledger 4365294 (17:00:57Z). That figure was inferred from a monitoring
+probe that happened to start reading at 4365294, not from walking the
+ledger records back to the boundary, which is exactly the inference this
+section warns against. The build lead's review caught it by binary
+searching Horizon; the boundary above was then re-measured independently
+for this correction (last protocol 27 ledger 4365283, closed 17:00:02Z;
+first protocol 28 ledger 4365284, closed 17:00:07Z, each read from its
+own `protocol_version` field). The switch was fifty seconds earlier than
+first recorded. No conclusion changes: the re-verification transactions
+sit at ledgers 4365302 and 4365303, past the boundary under either
+figure, and the error was in the conservative direction.
 
 Horizon root at 17:01:20 UTC, after the change:
 
