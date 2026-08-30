@@ -110,10 +110,16 @@ export const SCREENS = {
   },
 
   endConfirm(accountId: string, depositRef: string): Screen {
+    // "Deposit started" overstated what happens here: on testnet the anchor
+    // itself reports this deposit as `incomplete` and no funds move. The
+    // wording states what was actually achieved, authentication the anchor
+    // honoured, and says plainly that nothing moved. The account fragment
+    // and the reference stay runtime values (masked account, first 8
+    // characters of the SEP-6 id); only the middle line changed.
     return {
       kind: 'end',
       hop: 'confirm',
-      text: `Signed in as ${shortAccount(accountId)}\nDeposit started\nRef ${depositRef}`,
+      text: `Signed in as ${shortAccount(accountId)}\nVerified by the anchor. Test only, no funds move\nRef ${depositRef}`,
     };
   },
 

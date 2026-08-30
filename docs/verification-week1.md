@@ -29,16 +29,16 @@ Deliverable 1.
 
 | # | What to check | How to check it | What you should see | SOW §6.1 line |
 |---|---|---|---|---|
-| 1 | The public repository and the Week 1 branch | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/tree/sprint1-week1-adapter-core> | A code repository named `stellar-ussd-sep10-adapter` with folders `src`, `test`, `docs`, files `EVIDENCE.md`, `README.md`, `LICENSE` | Public repository link |
-| 2 | The MIT licence | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/blob/sprint1-week1-adapter-core/LICENSE> | First line "MIT License", second line "Copyright (c) 2026 5 Lanes Limited" | MIT-licensed repository |
-| 3 | Commit history across the sprint | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/commits/sprint1-week1-adapter-core> | A series of commits dated from 10 August 2026 building up the Week 1 modules | Commit history across the sprint |
+| 1 | The public repository and the Week 1 code as merged | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/tree/bc6ba14> | A code repository named `stellar-ussd-sep10-adapter` with folders `src`, `test`, `docs`, files `EVIDENCE.md`, `README.md`, `LICENSE` | Public repository link |
+| 2 | The MIT licence | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/blob/bc6ba14/LICENSE> | First line "MIT License", second line "Copyright (c) 2026 5 Lanes Limited" | MIT-licensed repository |
+| 3 | Commit history across the sprint | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/pull/1/commits> | A series of commits dated from 10 August 2026 building up the Week 1 modules | Commit history across the sprint |
 | 4 | Original account-creation transaction (build run) | Click <https://stellar.expert/explorer/testnet/tx/74370fe550d69d7b9e1b856e15192ed96f081ac1266fef35ba35fb60e45a5b66> | A successful transaction in ledger **4069925**, dated **10 August 2026 ≈14:02 UTC**, containing **4 operations** (begin sponsoring, create account, change trust, end sponsoring) | Transaction hashes showing account creation, viewable on stellar.expert |
 | 5 | Original sponsor-funding transaction (build run) | Click <https://stellar.expert/explorer/testnet/tx/cd973d965f2100394090b83577577aa38362ddd1e8cc103216baf37f03687ed7> | A successful transaction in ledger **4069921**, dated **10 August 2026 ≈14:02 UTC**, funding the operator account with 10,000 test XLM | Transaction hashes, viewable on stellar.expert |
 | 6 | Reproduction account-creation transaction (fresh public clone, docs only) | Click <https://stellar.expert/explorer/testnet/tx/42ad3dc030b834689608be9a3782d527037c794b58d3d900b619f4470c4601be> | A successful transaction in ledger **4070565**, dated **10 August 2026 ≈14:55 UTC**, with the same 4-operation shape as row 4 | Transaction hashes showing account creation, viewable on stellar.expert |
 | 7 | Reproduction sponsor-funding transaction | Click <https://stellar.expert/explorer/testnet/tx/2421144573606e6db2713b0eb6bdb58771d01d24d8f4018ffac1b74f15a61760> | A successful transaction in ledger **4070557**, dated **10 August 2026 ≈14:55 UTC** | Transaction hashes, viewable on stellar.expert |
 | 8 | The created user account holds no XLM but can hold the test asset | Click <https://stellar.expert/explorer/testnet/account/GARRMR4I5M4FZXRP7D55PB7K3SXUSGJOQN32CMEJFUKMAKNGLYU42WC2> | An account with **0 XLM** balance and a trustline to asset **SRT** | Transaction hashes showing account creation (resulting account state) |
-| 9 | The automated tests pass from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && git checkout sprint1-week1-adapter-core && npm install && npm test` (requires Node.js 22+) | A final line reporting **“Tests  49 passed \| 1 skipped (50)”** | MIT-licensed repository containing the adapter |
-| 10 | The demonstration signer is clearly labelled not-for-production | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/blob/sprint1-week1-adapter-core/src/signer/localKeypairSigner.ts> | Near the top, a comment block headed "**⚠️ NOT FOR PRODUCTION**" | MIT-licensed repository containing the adapter |
+| 9 | The automated tests pass from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && git checkout bc6ba14 && npm install && npm test` (requires Node.js 22+) | A final line reporting **“Tests  60 passed \| 1 skipped (61)”** | MIT-licensed repository containing the adapter |
+| 10 | The demonstration signer is clearly labelled not-for-production | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/blob/bc6ba14/src/signer/localKeypairSigner.ts> | Near the top, a comment block headed "**⚠️ NOT FOR PRODUCTION**" | MIT-licensed repository containing the adapter |
 | 11 | No private key exists anywhere in the repository | Plain-language explanation below this table; to re-run the check yourself, from the clone in row 9: `git grep -E 'S[A-Z2-7]{55}'` | The command prints **nothing** (no matches) | MIT-licensed repository containing the adapter |
 
 **Row 11 explained in plain language.** Stellar private keys ("secret
@@ -53,6 +53,21 @@ commits in the branch's *history* (not its current content) contained a
 test string shaped like a secret key; it fails the Stellar checksum, so it
 is not — and never was — a usable key. It is disclosed in the pull request
 so the reviewer sees it named before finding it.
+
+## Why these links point at commit numbers (updated 27 August 2026)
+
+When this page was first written, its links pointed at the Week 1 working
+branch. That branch was deleted when the work was merged, which is normal
+housekeeping, but it left the links above dead. They now point at
+`bc6ba14`, the permanent commit number under which Week 1 was merged.
+Commit numbers are never deleted or rewritten, so these links keep working
+for as long as the repository exists.
+
+Row 9's expected test count was also corrected, from 50 to 61. The
+original figure was written mid week; the build lead's review then added
+tests, and the count at the merged commit is the one you will actually
+see. It was re-run at `bc6ba14` on 27 August 2026 to confirm the figure
+printed here is the figure the command prints.
 
 ## What this week does not claim
 

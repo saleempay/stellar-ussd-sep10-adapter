@@ -40,16 +40,27 @@ Deliverable 1.
 
 | # | What to check | How to check it | What you should see | SOW §6.1 line |
 |---|---|---|---|---|
-| 1 | The Week 2 branch | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/tree/sprint1-week2-sep10-auth> | The repository with a new `src/auth` folder (`toml.ts`, `challenge.ts`, `verify.ts`, `token.ts`, `authenticate.ts`) | Public repository link |
-| 2 | Commit history across the sprint | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/commits/sprint1-week2-sep10-auth> | Week 2 commits dated 20 August 2026 building up the auth modules, on top of the merged Week 1 | Commit history across the sprint |
+| 1 | The Week 2 code as merged | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/tree/b33734f> | The repository with a new `src/auth` folder (`toml.ts`, `challenge.ts`, `verify.ts`, `token.ts`, `authenticate.ts`) | Public repository link |
+| 2 | Commit history across the sprint | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/pull/4/commits> | Week 2 commits dated 20 August 2026 building up the auth modules, on top of the merged Week 1 | Commit history across the sprint |
 | 3 | This run's on-chain transaction: account creation for the account that was then authenticated | Click <https://stellar.expert/explorer/testnet/tx/b3de5978fef48e3991b780821ce48a5ef4d5e49566cd52a3f1f71c9f3657990e> | A successful transaction in ledger **4232903**, dated **20 August 2026 ≈00:46 UTC**, containing **4 operations** | Transaction hashes, viewable on stellar.expert |
 | 4 | Sponsor-funding transaction (fresh Week 2 throwaway sponsor) | Click <https://stellar.expert/explorer/testnet/tx/74c6cb42253be0a3321f78917af2abee33fdcf6db1b085957cd17cd340f3e116> | A successful transaction in ledger **4232899**, dated **20 August 2026 ≈00:46 UTC**, funding the operator account with 10,000 test XLM | Transaction hashes, viewable on stellar.expert |
 | 5 | The authenticated account holds no XLM and no key material on any client | Click <https://stellar.expert/explorer/testnet/account/GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM> | An account with **0 XLM** balance and a trustline to asset **SRT** | A SEP-10 JWT issued for an account with no client-side key |
 | 6 | The anchor issued a JWT scoped to exactly that account | In `EVIDENCE.md`, Week 2 section, "signed challenge (POST) and token response": compare the decoded claims block | `"sub"` equals the account from row 5; `"iss"` is `https://testanchor.stellar.org/auth`; the token's signature segment is marked `[SIGNATURE REDACTED]` with the redaction explained beside it | A SEP-10 challenge signed and accepted on testnet |
 | 7 | The anchor accepts the token where it refused without it | In `EVIDENCE.md`, Week 2 section, "The anchor accepts the token": read the two-leg table | The same URL answered **HTTP 403** with no token and **HTTP 200** with it, timestamps seconds apart on 20 August 2026 | A SEP-10 challenge signed and accepted on testnet |
-| 8 | The automated tests pass from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && git checkout sprint1-week2-sep10-auth && npm install && npm test` (requires Node.js 22+) | A final line reporting **"Tests  115 passed \| 2 skipped (117)"** | MIT-licensed repository containing the adapter |
-| 9 | The software refuses tampered challenges | Open `test/unit/authVerify.test.ts` on the branch | A test for every refusal: wrong signer, nonzero sequence, expired time window, wrong network, missing signature, wrong account, and more | MIT-licensed repository containing the adapter |
+| 8 | The automated tests pass from a clean download | In a terminal: `git clone https://github.com/saleempay/stellar-ussd-sep10-adapter && cd stellar-ussd-sep10-adapter && git checkout b33734f && npm install && npm test` (requires Node.js 22+) | A final line reporting **"Tests  135 passed \| 2 skipped (137)"** | MIT-licensed repository containing the adapter |
+| 9 | The software refuses tampered challenges | Click <https://github.com/saleempay/stellar-ussd-sep10-adapter/blob/b33734f/test/unit/authVerify.test.ts> | A test for every refusal: wrong signer, nonzero sequence, expired time window, wrong network, missing signature, wrong account, and more | MIT-licensed repository containing the adapter |
 | 10 | No private key exists anywhere in the repository | From the clone in row 8: `git grep -E 'S[A-Z2-7]{55}'` | The command prints **nothing** (no matches) | MIT-licensed repository containing the adapter |
+
+## Why these links point at commit numbers (updated 27 August 2026)
+
+As on the Week 1 page: the Week 2 working branch was deleted when the work
+merged, so the links now point at `b33734f`, the permanent commit number
+under which Week 2 was merged. Commit numbers are never deleted, so these
+links keep working.
+
+Row 8's expected test count was corrected from 117 to 137 for the same
+reason as Week 1: the figure was written before the review round added
+tests. It was re-run at `b33734f` on 27 August 2026 to confirm.
 
 ## What this week does not claim
 

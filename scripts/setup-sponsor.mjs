@@ -3,8 +3,8 @@
  * TESTNET-ONLY sponsor bootstrap.
  *
  * Generates a fresh keypair for the operator (sponsor) account and funds it
- * via friendbot. Prints the .env lines to copy into your local .env file —
- * it never writes .env itself and nothing it produces may be committed.
+ * via friendbot. Prints the two SPONSOR_ values to fill into your .env.
+ * It never writes .env itself and nothing it produces may be committed.
  *
  * The secret printed here is a throwaway TESTNET credential for the local
  * reference signer. A production deployment has no sponsor secret in the
@@ -40,7 +40,9 @@ console.log('');
 console.log(`Funded. Friendbot tx hash: ${funding.hash}`);
 console.log(`  https://stellar.expert/explorer/testnet/tx/${funding.hash}`);
 console.log('');
-console.log('Add these lines to your local .env (NEVER commit .env):');
+console.log('Fill these two values into your local .env (NEVER commit .env).');
+console.log('The keys already exist in .env.example: replace the empty values,');
+console.log('do not append these lines, or .env will carry duplicate keys.');
 console.log('');
 console.log(`SPONSOR_PUBLIC_KEY=${kp.publicKey()}`);
 console.log(`SPONSOR_SECRET_KEY=${kp.secret()}`);

@@ -509,3 +509,31 @@ See the README quickstart. Everything in this repository targets testnet
 only; mainnet operation is out of scope and unvalidated. For the sprint's
 sponsor account of record, its key custody, and recovery after a testnet
 reset, see `docs/sponsor-account.md`.
+
+## Dependency install scripts are allowlisted
+
+`package.json` carries an `allowScripts` field. This is a first class npm
+feature (npm 11, see `npm help config` and `npm help approve-scripts`),
+not a local convention: it names the dependencies whose install scripts
+npm is permitted to execute, and refuses every other one.
+
+Two entries are declared:
+
+| Entry | Setting | Why |
+|---|---|---|
+| `esbuild@0.28.2` | allowed | The bundler behind vitest fetches its platform binary in a postinstall step. Without it the test suite cannot run. Pinned to the exact version in `package-lock.json`, so a version bump has to be approved again rather than inherited silently. |
+| `fsevents` | denied | An optional macOS only native watcher used by vitest's watch mode. `npm test` runs once and does not need it, so its native build step is refused. Non macOS installs never see the package at all. |
+
+The effect is that a fresh `npm install` from this repository executes
+exactly one third party install script, the one named above, and any new
+dependency that arrives carrying an install script causes npm to stop and
+ask rather than run it. For a repository whose whole purpose is to be
+cloned and run by people who did not write it, that refusal is the point.
+
+Reviewers who want to see the state for themselves:
+
+```
+npm approve-scripts --allow-scripts-pending   # lists anything not yet covered
+```
+
+An empty list is the expected answer on a clean clone.

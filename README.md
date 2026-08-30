@@ -1,7 +1,15 @@
 # Stellar USSD SEP-10 Adapter
 
+[![CI](https://github.com/saleempay/stellar-ussd-sep10-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/saleempay/stellar-ussd-sep10-adapter/actions/workflows/ci.yml)
+
 A server-side SEP-10 authentication adapter that brings authenticated Stellar
 anchor flows to USSD and SIM Toolkit sessions on feature phones.
+
+**Reviewing this work?** Start at
+[docs/instaward-evidence-package.md](docs/instaward-evidence-package.md).
+It states what was delivered and gives a checklist where every row is a
+link to click or one command to run, with the expected answer beside it.
+No programming knowledge needed.
 
 ## The problem
 
@@ -37,9 +45,9 @@ behind an interface, so adopters can use any signing backend.
 
 ## Status
 
-**Week 3 of 4 delivered** (sprint started 10 August 2026, targeting a first
-public release with a working USSD authentication flow against Stellar
-testnet):
+**Week 4 of 4, close out** (sprint started 10 August 2026, targeting a
+first public release with a working USSD authentication flow against
+Stellar testnet). All three build weeks are merged:
 
 - MSISDN → Stellar account resolution behind a pluggable registry
   (in-memory and JSON-file reference stores)
@@ -68,8 +76,14 @@ testnet):
   [docs/integration-guide.md](docs/integration-guide.md) and
   [EVIDENCE.md](EVIDENCE.md).
 
-Not yet built (Week 4): the demo and evidence packaging. Everything
-targets **testnet only**.
+- **Close out** (Week 4): the [evidence
+  package](docs/instaward-evidence-package.md), the [demo video
+  plan](docs/demo-video-plan.md), continuous integration on every pull
+  request, and remediation of what testing surfaced.
+
+The demo video recording is the one deliverable still outstanding; it is
+an operator step and its plan is linked above. Everything targets
+**testnet only**.
 
 ## Quickstart (testnet)
 
@@ -82,8 +96,8 @@ npm install
 npm test                          # offline unit tests
 
 # Live testnet end-to-end: fund a throwaway sponsor account…
-node scripts/setup-sponsor.mjs
-cp .env.example .env              # then paste the two printed SPONSOR_* lines
+cp .env.example .env              # the template already lists every key
+node scripts/setup-sponsor.mjs    # then fill in the two SPONSOR_ values in .env
 # …and run the flow: resolve a phone number, create the account with
 # sponsored reserves, establish the trustline, print tx hashes:
 npm run test:e2e
