@@ -130,12 +130,21 @@ should name all three:
 anchor saying the deposit was initiated and not funded, which is exactly
 what happened: no funds move anywhere in this sprint.
 
-## Resolved: the END screen wording was changed (approved 29 August 2026)
+## Resolved: the END screen wording was changed
 
 This section previously flagged the confirmation screen, which read
-`Deposit started`, and proposed a replacement. **The change was approved
-and applied**, so the shot list above shows the new text and the recording
-should show it too.
+`Deposit started`, and proposed a replacement. The change was applied,
+so the shot list above shows the new text and the recording should show
+it too.
+
+The record of who decided, stated precisely because this document's value
+is that its claims can be checked. The replacement wording was proposed
+by the author in this document, and approved by Ramy Soliman, Co-Founder
+and CEO, on 29 August 2026 in the project working session, before it was
+applied. That approval sits in the project's working record, not on the
+pull request: no pull request review or comment approves it, and this
+page does not claim one does. The build lead subsequently endorsed the
+wording on substance in his 29 August review of the Week 4 pull request.
 
 The screen now renders, at the longest possible runtime values:
 
