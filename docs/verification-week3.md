@@ -101,6 +101,24 @@ None of this changed the user-visible journey or the `failedCheck`
 contract (still 20 names). See the PR #5 conversation for the disposition
 table.
 
+## Which section satisfies which Statement of Work clause
+
+Added 27 August 2026. The Week 1 and Week 2 checklists carry this mapping
+in the last column of their tables; this page is written as numbered
+sections rather than a table, so the mapping is given here instead. It
+closes the one formatting gap found when the three weekly checklists were
+reconciled for the [evidence package](instaward-evidence-package.md).
+
+| Statement of Work clause (Week 3, verbatim) | Satisfied by |
+|---|---|
+| "USSD menu flow within the USSD character budget" | Section 1 |
+| "PIN consent verified against a hash and never transmitted onward" | Section 2 |
+| "short-lived session store with atomic single-use semantics to prevent replay" | Section 3 |
+| "error handling for session timeout and missing trustline" | Section 4 |
+| "Tested against a commercial USSD gateway" | Section 5 |
+| Expected output: "A live USSD session authenticates end to end and completes an anchor operation" | Section 5, and the anchor's own read back recorded in `EVIDENCE.md` |
+| Expected output: "Replay attempts rejected" | Section 3 |
+
 ## 7. What is deliberately out of scope
 
 Production signing, mainnet, the anchor itself, SIM Toolkit key

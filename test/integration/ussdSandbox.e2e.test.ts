@@ -232,7 +232,7 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
       // --- The replay attempt, performed by this test ---
       const finalCallback = [...callbacks]
         .reverse()
-        .find((c) => c.responseBody.includes('Deposit started'));
+        .find((c) => c.responseBody.includes('Verified by the anchor. Test only, no funds move'));
       expect(finalCallback, 'The confirming callback must be in the capture.').toBeDefined();
 
       const replayRes = await fetch(localUrl, {

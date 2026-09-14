@@ -50,6 +50,44 @@ describe('screen catalogue budget', () => {
     expect(SCREENS.pinSetupWeak().text).not.toMatch(/[0-9]/);
   });
 
+  it('the confirmation screen fits the budget at maximum runtime values', () => {
+    // The parametrised budget test above already covers this screen through
+    // allScreensAtMaxLength(). This asserts it directly and by name, because
+    // the wording changed after the Week 3 run (it used to read "Deposit
+    // started", which overstated a testnet demonstration the anchor reports
+    // as incomplete) and the replacement is 33 characters longer. The
+    // guarantee should be legible on its own rather than implied by a loop.
+    //
+    // Longest possible runtime values: a full 56 character account id, which
+    // shortAccount renders as 10 characters, and an 8 character deposit
+    // reference (journey.ts truncates the SEP-6 id to 8).
+    const longestAccount = 'G'.padEnd(56, 'X');
+    const longestRef = 'X'.repeat(8);
+    const screen = SCREENS.endConfirm(longestAccount, longestRef);
+
+    expect(screen.text).toBe(
+      'Signed in as GXXX..XXXX\nVerified by the anchor. Test only, no funds move\nRef XXXXXXXX',
+    );
+    expect(screen.text.length + PREFIX_LENGTH).toBe(89);
+    expect(screen.text.length + PREFIX_LENGTH).toBeLessThanOrEqual(CHAR_BUDGET);
+
+    // The values stay templated: neither the example account fragment nor
+    // the example reference may be baked into the catalogue.
+    const other = SCREENS.endConfirm('GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW', 'ab12cd34');
+    expect(other.text).toContain('GABC..TUVW');
+    expect(other.text).toContain('Ref ab12cd34');
+    expect(other.text).toContain('Verified by the anchor. Test only, no funds move');
+  });
+
+  it('the confirmation screen does not claim funds moved', () => {
+    // The reason the wording changed. No screen in the catalogue may state
+    // or imply that value was transferred: this sprint is testnet only and
+    // the one deposit it initiates is reported by the anchor as incomplete.
+    const screen = SCREENS.endConfirm('G'.padEnd(56, 'X'), 'X'.repeat(8));
+    expect(screen.text).not.toMatch(/deposit(ed)? (started|sent|complete)/i);
+    expect(screen.text.toLowerCase()).toContain('no funds move');
+  });
+
   it('shortAccount shows first and last four characters only', () => {
     const account = 'GAA3F7RAZ2YQFEAIOQHUNSXQBHS4MXBFEZ3YFYFZZPN5OZU44YX4EAFM';
     expect(shortAccount(account)).toBe('GAA3..EAFM');
