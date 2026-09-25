@@ -1146,3 +1146,200 @@ where enrolment left off, using the account and PIN that session A
 established. A session ending on the telco's inactivity timer is the
 channel behaving as documented, and the software renders the correct
 screen for it.
+
+## Demo video recording, 24 September 2026
+
+The Week 4 demo video was recorded against the live gateway on
+24 September 2026 and published on 25 September 2026:
+
+**Video:** <https://www.youtube.com/watch?v=82zS2ZQkjoc>
+
+Two captures completed that morning. Run 2 is the take in the video. Run 1
+is kept because it really happened, and because it repeats a timing
+behaviour recorded on 28 August.
+
+**Result: both runs completed end to end, both replay attempts were refused
+in each, and the anchor's own record matches the reference on the phone.**
+
+### Setup
+
+| Item | Value |
+|---|---|
+| Gateway | Africa's Talking sandbox, shared code channel `*384*45210#` |
+| Simulator MSISDN | masked `+2547***0000` (synthetic, sandbox only) |
+| Callback | ephemeral tunnel, dead after the session; the path is a capability credential and is not recorded here |
+| Sponsor (throwaway, created 24 September) | `GDTZDHQ3JAYDCXMV7KHWMEOV2LLOHYQZKP5YON5XHRDUZXEYT5E2P5M4` |
+| Anchor | testanchor.stellar.org |
+| Network | Stellar testnet at **Protocol 28** (ledger 4843351 reports `"protocol_version": 28`) |
+| Software | `main` at `78757f6`, unchanged; offline suite 352 passed, 3 skipped |
+
+A fresh sponsor was used because the flag gated capture keeps the MSISDN
+to account mapping, the PIN records and the reference signer's keys in
+memory only. The 28 August account could not be signed into again after
+that process ended, so each capture starts with an enrolment.
+
+### Run 2, the recorded take (masked)
+
+One gateway session, no timeout. Enrolment and sign in completed in a
+single dial.
+
+| At (UTC) | text | Response |
+|---|---|---|
+| 08:58:18.389Z | (dial) | `CON Saleem Stellar test / 1. Sign in and deposit / 2. About` |
+| 08:58:27.557Z | `1` | `CON Create a 4 digit PIN` |
+| 08:58:36.211Z | `1*####` | `CON Enter the PIN again` |
+| 08:58:40.975Z | `1*####*####` | `CON PIN saved / 1. Create your account and continue` |
+| 08:58:58.279Z | `1*####*####*1` | `CON Account ready / Enter your PIN` (on-chain creation inside this callback, 4.66 s) |
+| 08:59:07.905Z | `1*####*####*1*####` | `END Signed in as GD4I..J24Z / Verified by the anchor. Test only, no funds move / Ref a619288e` |
+
+Machine state transitions: `welcome > pinSetup1 > pinSetup2 >
+accountPrompt`, `event=accountCreated` at 08:59:02.937Z, then
+`accountPrompt > pinEnter > done` with `event=journeyComplete` at
+08:59:10.217Z. Span, dial to confirmation: 49.5 s. Longest gap between
+inputs: 17.3 s, including the on-chain creation.
+
+The anchor operation, inside the final callback:
+
+| At (UTC) | Leg | Result |
+|---|---|---|
+| 08:59:08.005Z | SEP-10 challenge `GET /auth` | HTTP 200 |
+| 08:59:08.734Z | SEP-10 signed challenge `POST /auth` | HTTP 200, token issued |
+| 08:59:08.978Z | SEP-6 `GET /sep6/deposit` with the bearer token | HTTP 200, transaction id `a619288e-4b47-48ea-b222-2c44abf85701` |
+
+Read back, `GET /sep6/transaction?id=a619288e-4b47-48ea-b222-2c44abf85701`:
+
+- **Without a token**, 24 September 09:23:40Z: HTTP 403 `{"error": "forbidden"}`.
+- **With the session token**, performed by the capture at 08:59:10Z:
+  HTTP 200,
+
+```json
+{
+  "id": "a619288e-4b47-48ea-b222-2c44abf85701",
+  "kind": "deposit",
+  "status": "incomplete",
+  "to": "GD4IK5F3AYAVSNLPJU3U3WBYM3DRXMKWHVOLBTNU6B32N63BBN2EJ24Z",
+  "started_at": "2026-09-24T08:59:09.310609Z"
+}
+```
+
+(`more_info_url` omitted: it carries a URL token.) The authenticated read
+was not repeated later by hand: the capture stores the session token with
+its signature redacted, by design, and the full token existed only in the
+capture's memory. No new token was minted to reproduce it.
+
+Ref on the phone `a619288e` against the first 8 characters of the anchor
+id `a619288e`: **match**.
+
+Replay attempts, performed by the flag gated test against the live
+handler:
+
+| At (UTC) | What was sent | Result | Journey count |
+|---|---|---|---|
+| 08:59:10.701Z | The final callback, byte for byte | HTTP 200, the identical cached END screen; `event=cacheHit` | still 1 |
+| 08:59:10.704Z | Forged variant: last input changed to `0000` | `END This step was already completed`; `event=replay state=done` | still 1 |
+
+On-chain, sponsored account creation:
+
+- Account: `GD4IK5F3AYAVSNLPJU3U3WBYM3DRXMKWHVOLBTNU6B32N63BBN2EJ24Z`
+- Creation tx: `8d1bf7637287a38a03c1fd170b9c4337b46d1bd1ddba4639fd702e13eceb2b76`
+  (https://stellar.expert/explorer/testnet/tx/8d1bf7637287a38a03c1fd170b9c4337b46d1bd1ddba4639fd702e13eceb2b76)
+
+```json
+{
+  "id": "8d1bf7637287a38a03c1fd170b9c4337b46d1bd1ddba4639fd702e13eceb2b76",
+  "successful": true,
+  "ledger": 4843351,
+  "created_at": "2026-09-24T08:59:02Z",
+  "source_account": "GDTZDHQ3JAYDCXMV7KHWMEOV2LLOHYQZKP5YON5XHRDUZXEYT5E2P5M4",
+  "fee_charged": "400",
+  "operation_count": 4
+}
+```
+
+Operations, in order: `begin_sponsoring_future_reserves`, `create_account`
+(starting balance 0), `change_trust` (SRT), `end_sponsoring_future_reserves`.
+Account state read back: **0 XLM**, SRT trustline present,
+`num_sponsored: 3`, one signer.
+
+### Run 1, the earlier capture (masked)
+
+Three gateway sessions.
+
+| At (UTC) | Session | text | Response |
+|---|---|---|---|
+| 08:38:24.490Z | A | (dial) | `CON Saleem Stellar test` |
+| 08:38:37.484Z | A | `1` | `CON Create a 4 digit PIN` |
+| 08:38:59.529Z | A | `1*####` | `CON Enter the PIN again` |
+| 08:39:06.306Z | A | `1*####*####` | `CON PIN saved / 1. Create your account and continue` |
+| 08:39:53.232Z | B | (dial) | `CON Saleem Stellar test` |
+| 08:40:01.185Z | B | `1` | `CON Enter your PIN` |
+| 08:40:08.667Z | B | `1*####` | `CON PIN saved / 1. Create your account and continue` |
+| 08:40:52.604Z | B | `1*####*1` | `CON Account ready / Enter your PIN` (on-chain creation inside this callback, 5.29 s) |
+| 08:41:15.956Z | C | (dial) | `CON Saleem Stellar test` |
+| 08:41:41.849Z | C | `1` | `CON Enter your PIN` |
+| 08:41:50.177Z | C | `1*####` | `END Signed in as GBKW..LZ3Q / Verified by the anchor. Test only, no funds move / Ref 108afb09` |
+
+Session A expired on the gateway timer at the "Create your account"
+prompt: the simulator sent the reply, the gateway reported the session
+expired, and no creation request reached the server. Account creation ran
+in session B and returned `Account ready`; session B then ended before the
+PIN, which is the part that repeats 28 August. Session C completed by the
+returning user path.
+
+| Check | Result |
+|---|---|
+| SEP-10 challenge `GET /auth` | HTTP 200 at 08:41:50.283Z |
+| SEP-10 signed challenge `POST /auth` | HTTP 200 at 08:41:51.034Z |
+| SEP-6 `GET /sep6/deposit` | HTTP 200 at 08:41:51.332Z, id `108afb09-2d5b-421d-ba92-e8214bd9cda1` |
+| Read back without a token, 08:46:43Z | HTTP 403 `{"error": "forbidden"}` |
+| Read back with the token, by the capture at 08:41:53Z | HTTP 200, kind `deposit`, status `pending_customer_info_update`, `to` the session's account |
+| Ref on the phone against the anchor id | `108afb09` against `108afb09`: match |
+| Replay, byte for byte, 08:41:53.753Z | identical cached END screen, `event=cacheHit`, journey count still 1 |
+| Forged variant `1*0000`, 08:41:53.758Z | `END This step was already completed`, journey count still 1 |
+| Account | `GBKWCLDVULWN6RKW5FWN4P24ZFXH7AENNDVFLICYU7X7HFDQAEO4LZ3Q` |
+| Creation tx | `3cc515327c15a9753c9d6b61f469810ff194b04b3cba0805f958d4fff8b298ff`, ledger 4843134, 08:40:57Z, 4 operations, successful (https://stellar.expert/explorer/testnet/tx/3cc515327c15a9753c9d6b61f469810ff194b04b3cba0805f958d4fff8b298ff) |
+
+**The anchor's status differs between the runs.** Run 1's deposit reads
+`pending_customer_info_update`; Run 2's, seventeen minutes later, reads
+`incomplete`. Both mean the deposit was started and not funded. The status
+is the anchor's to set; this adapter does not control it.
+
+**Disclosure about the capture.** Two entries in Run 1's raw transcript
+are `404 not found` responses at 08:35:19Z and 08:35:20Z. They carry no
+gateway form fields: they are the operator's own reachability check on the
+tunnel root, correctly refused by the handler. Several dials before Run 1,
+from about 08:31Z, failed with the gateway's "network is experiencing
+technical problems" screen. Per the operator, the dashboard still held
+the 14 September tunnel at that point. Observed at the time: none of those
+dials reached this session's tunnel, and the simulator host answered
+HTTP 503.
+
+### How the video was produced
+
+- The phone footage is the screen recording of Run 2 in the gateway's web
+  simulator. The simulator shows PIN digits in clear text while typing, so
+  the PIN field is blurred in the published footage. The raw recording is
+  not published. Every PIN entry frame was checked at four frames per
+  second after assembly; no digit is legible.
+- The terminal still (shots 7 to 9) shows the Run 2 capture printed by a
+  local script: the three anchor exchanges, the replay results, the
+  anchor read back (the 403 run live, the 200 labelled as the run's own
+  authenticated read), and the explorer link. No token, callback path or
+  `.env` value appears.
+- A second still shows the Run 2 creation transaction on stellar.expert.
+- Narration is a synthetic text to speech voiceover (ElevenLabs), using a
+  fixed script that makes no claim beyond this section.
+- Published file: 162.07 s, 1080×1350, 30 fps, H.264 and AAC, loudness
+  normalised to -14 LUFS. sha256 of the uploaded source file
+  `b9ccfcb86f4b2084e5488f93657cb156c51a7b6b25afa1e2765e6e74ae31312e`
+  (the hosting platform re-encodes on upload, so the served stream will
+  not hash to this value).
+
+### What this recording adds
+
+- The first time user path completed enrolment and sign in inside one
+  gateway session (Run 2, 49.5 s). The 28 August note that one session is
+  too short for both remains the right design assumption: Run 1, the same
+  morning, did not fit.
+- The demo video exists, and every screen in it is one the software
+  rendered on a live gateway, recorded in this section.

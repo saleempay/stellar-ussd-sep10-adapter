@@ -148,10 +148,13 @@ The video shows the journey in rows 12 to 15 as a viewer would experience
 it: dialling the code, the menu, the PIN, the confirmation, and then the
 replay being refused.
 
-**Pointer:** _to be filled in when the recording is made._ The shot list,
-the narration points, and the recording preconditions are written up in
-[demo-video-plan.md](demo-video-plan.md). That plan is deliberately strict
-about showing only screens the software actually produces.
+**Pointer:** <https://www.youtube.com/watch?v=82zS2ZQkjoc>, recorded
+24 September 2026. The run it shows is recorded in
+[EVIDENCE.md](../EVIDENCE.md), "Demo video recording, 24 September 2026".
+The shot list, the narration points, and the recording preconditions are
+written up in [demo-video-plan.md](demo-video-plan.md). That plan is
+deliberately strict about showing only screens the software actually
+produces.
 
 ---
 
@@ -238,13 +241,11 @@ it:
 
 **The reconciliation found two gaps. One is closed, one remains open.**
 
-1. **Open: the demo video is not yet recorded.** It is a Week 4
-   deliverable and the only item in this package without evidence behind
-   it. The plan is written and the recording is an operator step. Until it
-   exists, this package is complete on every other line and incomplete on
-   that one. The journey it will show was re-run successfully on the
-   upgraded network on 28 August 2026 and is recorded in
-   [EVIDENCE.md](../EVIDENCE.md), so the recording is the only step left.
+1. **Closed (25 September 2026): the demo video is recorded.** It was
+   recorded against the live gateway on 24 September 2026 and published
+   on 25 September 2026 at <https://www.youtube.com/watch?v=82zS2ZQkjoc>. The
+   run it shows is recorded in [EVIDENCE.md](../EVIDENCE.md), "Demo video
+   recording, 24 September 2026".
 2. **Closed: the Week 3 checklist now carries its clause mapping.** Week 1
    and Week 2 cite the clause each row satisfies in a final column and
    Week 3 did not. The evidence was present and mapped; only the citation

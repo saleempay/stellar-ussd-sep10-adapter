@@ -183,3 +183,50 @@ wondering.
 - The gateway is a sandbox, not a live telco shortcode.
 - The anchor is a Stellar Development Foundation test anchor. Saleem does
   not operate it and makes no claim about it.
+
+## Recorded, 24 September 2026
+
+The video was recorded on 24 September 2026 and published on
+25 September 2026 at <https://www.youtube.com/watch?v=82zS2ZQkjoc>. The run it
+shows is recorded in `EVIDENCE.md`, "Demo video recording,
+24 September 2026".
+
+**Path recorded: a single session enrolment and sign in**, not the
+returning user path recommended above and not the two dial fallback. The
+28 August account could not be reused, because the capture keeps its
+account mapping and keys in memory, so the take had to start with an
+enrolment. On the recorded dial the enrolment did not time out, and the
+same session went on to the confirmation.
+
+Differences from the shot list:
+
+- **Shot 1:** the dialler shows the synthetic number `+254700000000`
+  (masked in the evidence) and the service code `*384*45210#`, as planned.
+- **Shots 2 to 5:** four enrolment screens appear between the welcome and
+  the confirmation, which the returning user path does not have:
+  `Create a 4 digit PIN`, `Enter the PIN again`,
+  `PIN saved / 1. Create your account and continue`, and
+  `Account ready / Enter your PIN`. The confirmation reads
+  `Signed in as GD4I..J24Z / Verified by the anchor. Test only, no funds
+  move / Ref a619288e`, not `GBHN..AXYY` and `Ref 15fbd333`.
+- **Shot 4:** the plan assumed the handset masks the PIN. The gateway's web
+  simulator shows PIN digits in clear text while typing, so the PIN field
+  is blurred in the published footage.
+- **Shot 9:** the anchor read back shows status `incomplete`, as planned.
+  The explorer view is the recorded take's own creation transaction,
+  `8d1bf763...`, not Run 1's from 28 August.
+- **Shot numbering:** the section on the anchor's proof refers to "shot 11"
+  and "the Ref from shot 8", but the list stops at 9. As ruled on
+  24 September 2026, the Ref is shot 5 and the anchor read back is shot 9.
+
+Other findings from the session, recorded rather than acted on:
+
+- An earlier capture the same morning (Run 1 in `EVIDENCE.md`) timed out
+  on the gateway timer at the "Create your account" prompt, and its second
+  enrolment session ended after `Account ready` and before the PIN,
+  repeating the 28 August behaviour. The recorded take did not time out.
+- Several dials before Run 1 failed with the gateway's "network is
+  experiencing technical problems" screen, while the dashboard still held
+  the 14 September tunnel.
+- The flag gated capture's startup banner still tells the operator to use
+  `<tunnel>/ussd/callback`; the handler serves `USSD_CALLBACK_PATH`.
