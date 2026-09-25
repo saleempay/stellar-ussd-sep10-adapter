@@ -187,7 +187,7 @@ wondering.
 ## Recorded, 24 September 2026
 
 The video was recorded on 24 September 2026 and published on
-25 September 2026 at <https://www.youtube.com/watch?v=82zS2ZQkjoc>. The run it
+25 September 2026 at <https://www.youtube.com/watch?v=b4Q195lEXqI>. The run it
 shows is recorded in `EVIDENCE.md`, "Demo video recording,
 24 September 2026".
 
