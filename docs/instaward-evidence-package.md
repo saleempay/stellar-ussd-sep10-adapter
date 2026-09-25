@@ -252,6 +252,8 @@ it:
    was missing. A mapping table was added to
    [verification-week3.md](verification-week3.md) on 27 August 2026.
 
+Issue #9 (raised from the recording) closed 25 September 2026 by PR #12, with regression tests; not a vulnerability.
+
 One note on sourcing, for accuracy. The Statement of Work document itself
 is not held in this repository. The deliverable wording quoted above is
 quoted from the weekly verification guides, which quoted it from the

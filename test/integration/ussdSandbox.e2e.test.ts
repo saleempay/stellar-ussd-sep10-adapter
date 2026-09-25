@@ -52,7 +52,13 @@ import {
   type JourneySeam,
   type MachineDeps,
 } from '../../src/index.js';
-import { capturingFetch, parseStellarToml, type CapturedExchange } from './helpers.js';
+import {
+  captureBanner,
+  capturingFetch,
+  maskCallbackPath,
+  parseStellarToml,
+  type CapturedExchange,
+} from './helpers.js';
 
 const TEST_ANCHOR_HOME_DOMAIN = 'testanchor.stellar.org';
 
@@ -93,6 +99,10 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
       });
       const secret = process.env.SPONSOR_SECRET_KEY;
       expect(secret, 'Run `node scripts/setup-sponsor.mjs` and fill .env first').toBeTruthy();
+      // No default: the handler is served only on the configured
+      // capability path, never on a guessable fallback.
+      const callbackPath = process.env.USSD_CALLBACK_PATH;
+      expect(callbackPath, 'Set USSD_CALLBACK_PATH in .env first').toBeTruthy();
 
       // --- The real stack ---
       const signer = new LocalKeypairSigner();
@@ -161,7 +171,7 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
         gateway,
         machine,
         sessions,
-        callbackPath: process.env.USSD_CALLBACK_PATH ?? '/ussd/callback',
+        callbackPath: callbackPath!,
         log: (line) => logs.push(`${new Date().toISOString()} ${line}`),
       });
 
@@ -199,21 +209,10 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
         server.listen(Number(process.env.USSD_PORT ?? 8085), resolve);
       });
       const { port } = server.address() as AddressInfo;
-      const localUrl = `http://127.0.0.1:${port}${process.env.USSD_CALLBACK_PATH ?? '/ussd/callback'}`;
+      const localUrl = `http://127.0.0.1:${port}${callbackPath!}`;
 
       // eslint-disable-next-line no-console
-      console.log(
-        [
-          '',
-          '=== Africa\'s Talking sandbox e2e: operator steps ===',
-          `1. Expose port ${port} through an ephemeral tunnel.`,
-          '2. Paste <tunnel>/ussd/callback into the sandbox USSD callback setting.',
-          '3. In the simulator, dial the sandbox service code with the agreed',
-          `   synthetic MSISDN and complete the journey with the agreed test PIN.`,
-          '4. This test finishes on its own once the journey completes.',
-          '',
-        ].join('\n'),
-      );
+      console.log(captureBanner(port, callbackPath!));
 
       // --- Wait for the operator-driven journey to complete ---
       // Override with USSD_E2E_WAIT_MINUTES when gateway-side conditions
@@ -281,7 +280,7 @@ describe.skipIf(!enabled)('live Africa\'s Talking sandbox journey (Week 3)', () 
         masking:
           'phoneNumber middle digits masked; every PIN position and PIN ' +
           'value replaced by ####; JWT signatures redacted before commit.',
-        localCallbackPath: process.env.USSD_CALLBACK_PATH ?? '/ussd/callback',
+        localCallbackPath: maskCallbackPath(callbackPath!),
         anchor: {
           homeDomain: TEST_ANCHOR_HOME_DOMAIN,
           webAuthEndpoint: anchorInfo.auth.webAuthEndpoint,
