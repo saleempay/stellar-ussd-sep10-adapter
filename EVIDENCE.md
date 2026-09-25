@@ -1369,3 +1369,54 @@ uploaded source file
 `70db17f1efd7812748f3ef3d20054e960044127b85caa3f88052e56507a004bb`
 (the hosting platform re-encodes on upload, so the served stream will not
 hash to this value).
+
+## Issue #9 fixed, 25 September 2026
+
+Issue #9 asked whether a returning PIN entry, for an MSISDN that has a
+stored PIN but no account yet, is verified against the stored PIN or
+overwrites it. The trigger was Run 1 in "Demo video recording,
+24 September 2026" above: session A set and confirmed a PIN and ended at
+"Create your account"; session B asked "Enter your PIN" and then replied
+`PIN saved`.
+
+**Finding: the PIN was verified, never overwritten. The fault was the
+wording of the next screen.** Reproduced before any change, with the real
+scrypt PIN store, on `main` at `ae9bac6`:
+
+| Session B enters | Reply | Stored hash | Failures |
+|---|---|---|---|
+| the correct PIN | `PIN saved / 1. Create your account and continue` | unchanged | 0 |
+| a different PIN | `Wrong PIN. 2 attempts left / Enter your PIN` | unchanged; the original PIN still verifies, the entered one does not | 1 |
+
+Anyone dialling from the number before account creation could not reset
+the PIN: a wrong PIN was refused and counted toward the existing lockout.
+
+**Root cause.** In `src/ussd/menu/machine.ts`, the `pinEnter` state
+verifies the entry with `verifyPinAttempt`. When no account exists yet
+(the divergence path), it then showed `SCREENS.accountPrompt()`, the
+screen written for the step straight after PIN setup, which says
+`PIN saved`. The same screen was also reached after a verification by a
+duplicate callback re-prompt and by an invalid choice at that prompt.
+
+**Fix.** A separate screen, `SCREENS.accountPromptVerified()`, reads
+`PIN accepted / 1. Create your account and continue`. The divergence path,
+the duplicate re-prompt and the invalid choice re-prompt now choose the
+screen from the session: `PIN saved` only when the session itself just
+established the PIN, `PIN accepted` after a verification. PIN verification,
+storage and the lockout policy are unchanged. No PIN reset path was added.
+
+**Tests**, in `test/unit/ussdPinBeforeAccount.test.ts`, each driving the
+Run 1 sequence through the real state machine:
+
+- `the correct PIN continues to account creation without claiming the PIN was saved`
+  (failed before the fix, passes after)
+- `a wrong PIN is refused and the stored hash is unchanged, byte for byte`
+- `repeated wrong PINs trigger the existing lockout`
+- `a duplicate callback or an invalid choice after verification never says "PIN saved"`
+- `the setup path still says "PIN saved", where a PIN really was stored`
+- `the returning user with an account path is unchanged`
+
+The new screen is covered by the existing 160 character budget and header
+tests. Offline suite after the fix: 360 passed, 3 skipped (352 before, plus
+the six tests above and two budget cases for the new screen). Typecheck
+clean.

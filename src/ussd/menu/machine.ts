@@ -161,7 +161,7 @@ export async function handleStep(deps: MachineDeps, step: GatewayStep): Promise<
       return SCREENS.endReplay();
     }
     log(`session=${step.sessionId} event=duplicate state=${session.state}`);
-    return promptFor(session.state);
+    return promptFor(session);
   }
 
   const input = step.inputs[step.inputs.length - 1] ?? '';
@@ -253,7 +253,7 @@ async function transition(
 
     case 'accountPrompt': {
       if (input !== '1') {
-        return SCREENS.invalidChoice(SCREENS.accountPrompt());
+        return SCREENS.invalidChoice(accountPromptFor(session));
       }
       if (session.accountId === undefined) {
         try {
@@ -289,10 +289,12 @@ async function transition(
       }
       session.pinVerified = true;
 
-      // Divergence path: PIN exists but the account mapping does not.
+      // Divergence path: PIN exists but the account mapping does not. The
+      // PIN above was VERIFIED against the stored hash, never stored, so
+      // the prompt must not say it was saved (issue #9).
       if (session.accountId === undefined) {
         session.state = 'accountPrompt';
-        return SCREENS.accountPrompt();
+        return SCREENS.accountPromptVerified();
       }
 
       // The single use signing claim, atomic in the store.
@@ -324,9 +326,17 @@ async function transition(
   }
 }
 
-/** The prompt screen for a state, for harmless duplicate re-prompts. */
-function promptFor(state: MenuState): Screen {
-  switch (state) {
+/**
+ * The account prompt for this session: "PIN saved" only when the session
+ * itself just established the PIN, never after a verification (issue #9).
+ */
+function accountPromptFor(session: UssdSession): Screen {
+  return session.pinVerified ? SCREENS.accountPromptVerified() : SCREENS.accountPrompt();
+}
+
+/** The prompt screen for a session's state, for harmless duplicate re-prompts. */
+function promptFor(session: UssdSession): Screen {
+  switch (session.state) {
     case 'welcome':
       return SCREENS.welcome();
     case 'pinSetup1':
@@ -334,7 +344,7 @@ function promptFor(state: MenuState): Screen {
     case 'pinSetup2':
       return SCREENS.pinSetup2();
     case 'accountPrompt':
-      return SCREENS.accountPrompt();
+      return accountPromptFor(session);
     case 'pinEnter':
       return SCREENS.pinEnter();
     case 'done':

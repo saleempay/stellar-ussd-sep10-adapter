@@ -76,11 +76,25 @@ export const SCREENS = {
     };
   },
 
+  /** Account prompt directly after PIN setup, where a PIN was just stored. */
   accountPrompt(): Screen {
     return {
       kind: 'con',
       hop: 'accountPrompt',
       text: 'PIN saved\n1. Create your account and continue',
+    };
+  },
+
+  /**
+   * Account prompt after a stored PIN was verified (a PIN exists but the
+   * account does not, issue #9). Nothing was saved on this path, so the
+   * screen must not say so.
+   */
+  accountPromptVerified(): Screen {
+    return {
+      kind: 'con',
+      hop: 'accountPrompt',
+      text: 'PIN accepted\n1. Create your account and continue',
     };
   },
 
@@ -219,6 +233,7 @@ export function allScreensAtMaxLength(): Screen[] {
     SCREENS.pinSetup2(),
     SCREENS.pinSetupMismatch(),
     SCREENS.accountPrompt(),
+    SCREENS.accountPromptVerified(),
     SCREENS.accountReady(),
     SCREENS.pinEnter(),
     SCREENS.pinEnterBadFormat(),
