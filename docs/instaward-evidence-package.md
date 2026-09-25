@@ -239,7 +239,7 @@ it:
 | A SEP-10 challenge signed and accepted on testnet | Rows 10, 11 |
 | A SEP-10 JWT issued for an account with no client-side key | Rows 7, 10 |
 
-**The reconciliation found two gaps. One is closed, one remains open.**
+**The reconciliation found two gaps. Both are closed: gap 1 on 25 September 2026, gap 2 on 27 August 2026.**
 
 1. **Closed (25 September 2026): the demo video is recorded.** It was
    recorded against the live gateway on 24 September 2026 and published
