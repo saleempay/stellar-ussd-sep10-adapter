@@ -82,3 +82,33 @@ export function randomTestMsisdn(): string {
 export function stellarExpertTxUrl(hash: string): string {
   return `https://stellar.expert/explorer/testnet/tx/${hash}`;
 }
+
+/**
+ * Masked display form of the USSD callback path. The path is a capability
+ * credential, so only its last 4 characters are shown, after a fixed mask
+ * that does not reveal its length. Paths shorter than the handler's own
+ * minimum are masked completely.
+ */
+export function maskCallbackPath(path: string): string {
+  if (path.length < 12) return '/****';
+  return `/****${path.slice(-4)}`;
+}
+
+/**
+ * The operator steps printed when the live gateway capture starts. The
+ * callback path appears only in masked form: the operator copies the real
+ * value from their own `.env`.
+ */
+export function captureBanner(port: number, callbackPath: string): string {
+  return [
+    '',
+    "=== Africa's Talking sandbox e2e: operator steps ===",
+    `1. Expose port ${port} through an ephemeral tunnel.`,
+    '2. Set the sandbox USSD callback to the tunnel URL followed by the',
+    `   USSD_CALLBACK_PATH value from .env (shown masked: ${maskCallbackPath(callbackPath)}).`,
+    '3. In the simulator, dial the sandbox service code with the agreed',
+    '   synthetic MSISDN and complete the journey with the agreed test PIN.',
+    '4. This test finishes on its own once the journey completes.',
+    '',
+  ].join('\n');
+}
