@@ -55,7 +55,7 @@ this repository is for testnet only.
 
 **Sprint 1 complete** (10 August to 8 September 2026). Testnet only.
 
-Demo video: [watch the USSD journey on testnet](https://www.youtube.com/watch?v=82zS2ZQkjoc)
+Demo video: [watch the USSD journey on testnet](https://www.youtube.com/watch?v=b4Q195lEXqI)
 
 Delivered:
 
@@ -82,7 +82,7 @@ Delivered:
   refusal, lockout), and a thin gateway adapter seam with an Africa's
   Talking reference implementation, tested against the provider's sandbox.
 - **Close-out**: the [evidence package](docs/instaward-evidence-package.md),
-  the [demo video](https://www.youtube.com/watch?v=82zS2ZQkjoc), and
+  the [demo video](https://www.youtube.com/watch?v=b4Q195lEXqI), and
   continuous integration on every pull request.
 
 Not in scope for this release: mainnet, production key management, and
@@ -123,7 +123,7 @@ MIT. See LICENSE.
 
 ## Maintainer
 
-Saleem is a technology platform operated by 5 Lanes Limited, registered in
-the Abu Dhabi Global Market (registration 000008445), trading as Saleem (سليم).
+5 Lanes Limited, trading as Saleem (سليم). ADGM registered, No. 000008445.
+Not licensed to conduct regulated financial activities; pre-launch.
 
 Contact: sales@saleem.digital
