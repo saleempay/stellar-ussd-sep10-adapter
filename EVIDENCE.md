@@ -1343,3 +1343,29 @@ HTTP 503.
   morning, did not fit.
 - The demo video exists, and every screen in it is one the software
   rendered on a live gateway, recorded in this section.
+
+## Demo video re-published, 25 September 2026
+
+The demo video recorded on 24 September 2026 was re-published with updated
+opening and closing cards.
+
+**Video:** <https://www.youtube.com/watch?v=b4Q195lEXqI>
+
+**Withdrawn:** the previous link, <https://www.youtube.com/watch?v=82zS2ZQkjoc>,
+has been withdrawn. The section above records it as published on
+25 September 2026; that record stands as history and is not edited.
+
+What changed:
+
+- The opening and closing cards were updated to the saleem.digital
+  wording: the footer, the programme line, and a marks notice.
+- No other segment changed. The phone footage, the terminal still, the
+  explorer still, every narration clip, and the 5 s cut in the confirmation
+  hold are byte for byte the same segment files as the previous build. The
+  joined file was re-encoded and loudness normalised to -14 LUFS as before.
+
+Published file: 162.07 s, 1080×1350, 30 fps, H.264 and AAC. sha256 of the
+uploaded source file
+`70db17f1efd7812748f3ef3d20054e960044127b85caa3f88052e56507a004bb`
+(the hosting platform re-encodes on upload, so the served stream will not
+hash to this value).

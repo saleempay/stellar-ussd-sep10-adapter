@@ -148,7 +148,7 @@ The video shows the journey in rows 12 to 15 as a viewer would experience
 it: dialling the code, the menu, the PIN, the confirmation, and then the
 replay being refused.
 
-**Pointer:** <https://www.youtube.com/watch?v=82zS2ZQkjoc>, recorded
+**Pointer:** <https://www.youtube.com/watch?v=b4Q195lEXqI>, recorded
 24 September 2026. The run it shows is recorded in
 [EVIDENCE.md](../EVIDENCE.md), "Demo video recording, 24 September 2026".
 The shot list, the narration points, and the recording preconditions are
@@ -243,7 +243,7 @@ it:
 
 1. **Closed (25 September 2026): the demo video is recorded.** It was
    recorded against the live gateway on 24 September 2026 and published
-   on 25 September 2026 at <https://www.youtube.com/watch?v=82zS2ZQkjoc>. The
+   on 25 September 2026 at <https://www.youtube.com/watch?v=b4Q195lEXqI>. The
    run it shows is recorded in [EVIDENCE.md](../EVIDENCE.md), "Demo video
    recording, 24 September 2026".
 2. **Closed: the Week 3 checklist now carries its clause mapping.** Week 1
