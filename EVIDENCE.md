@@ -1420,3 +1420,41 @@ The new screen is covered by the existing 160 character budget and header
 tests. Offline suite after the fix: 360 passed, 3 skipped (352 before, plus
 the six tests above and two budget cases for the new screen). Typecheck
 clean.
+
+## Adapter PR #15 merge note, 7 October 2026
+
+Pull request #15, "Make the USSD step handler injectable" (fix-round head
+`3c22c41875451abe5c7591a6467dc6e7f1c6a1cb`, approved by ismo90 at
+14:07:29 UTC against that head), was merged into `main` at 14:26:39 UTC
+as `4c235f87c6af45a7c6043fe16b5eb246e148555f` with GitHub's default
+message instead of the supplied one. GitHub recorded it as a merge commit
+("Merge pull request #15 from saleempay/feat/injectable-step-handler",
+with the six branch commits preserved in the history), not as the
+intended squash. The message carries no Co-authored-by line, no other
+trailer, no em or en dash, no curly quote and no tool name, so the house
+rules are met and the history stays as it is: no rewrite of `main`.
+
+Content verified identical: `git diff 3c22c41 origin/main --stat` is
+empty. Suite on `origin/main` from a clean clone: `npm ci`, `npm run
+typecheck` clean, `npm test` 380 passed, 3 skipped (23 files passed,
+3 skipped).
+
+A revert, pull request #16 ("Revert \"Make the USSD step handler
+injectable\""), was opened by mistake at the same time and closed
+unmerged with the comment "Opened in error. The merge of #15 stands;
+content verified identical to 3c22c41."; its branch
+`revert-15-feat/injectable-step-handler` was deleted.
+
+The supplied squash subject and body, preserved here as the intended
+message:
+
+Subject: Make the USSD step handler injectable
+
+Body: One optional field on UssdHttpDeps, handle, a step handler the
+listener races against the watchdog instead of handleStep; exactly one of
+machine or handle is taken. Cached responses are evicted on their own
+TTL, independently of sessions, which also closes the leak for endTimeout
+responses under unknown session ids. A synchronous throw from the handler
+is routed like a rejected promise. The transport guarantees are tested
+through a custom handler, and the extension point is documented in the
+integration guide.
