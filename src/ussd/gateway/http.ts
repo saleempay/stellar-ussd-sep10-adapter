@@ -52,7 +52,7 @@ import { handleStep, type MachineDeps } from '../menu/machine.js';
 import { SCREENS } from '../menu/screens.js';
 import type { SessionStore } from '../session/types.js';
 import { ipInCidrs, normalizeIp, type ParsedCidr } from './ipAllowlist.js';
-import type { GatewayAdapter, GatewayResponse } from './types.js';
+import type { GatewayAdapter, GatewayResponse, GatewayStep, Screen } from './types.js';
 
 /** Default watchdog: answer busy at 8.5 seconds, inside the gateway's 10. */
 export const DEFAULT_WATCHDOG_MS = 8_500;
@@ -90,6 +90,14 @@ export interface UssdHttpDeps {
   watchdogMs?: number;
   /** Structured event sink. Never receives user input, never the path. */
   log?: (line: string) => void;
+  /**
+   * The step handler the listener races against the watchdog. Default:
+   * this adapter's {@link handleStep} over `machine`. A caller with its own
+   * menu (a different screen catalogue or final step) supplies its own
+   * handler and keeps the transport, the idempotency cache, the watchdog
+   * and the callback path checks unchanged.
+   */
+  handle?: (step: GatewayStep) => Promise<Screen>;
 }
 
 /**
@@ -191,7 +199,8 @@ export function createUssdRequestListener(
 
     // Race the machine against the watchdog. The machine promise records
     // its own outcome into the cache even when the watchdog answers first.
-    const work = handleStep(deps.machine, step).then((screen) => {
+    const handle = deps.handle ?? ((s: GatewayStep) => handleStep(deps.machine, s));
+    const work = handle(step).then((screen) => {
       const rendered = deps.gateway.renderResponse(screen);
       return deps.sessions
         .recordResponse(step.sessionId, stepKey, JSON.stringify(rendered))
