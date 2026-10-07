@@ -110,11 +110,37 @@ export interface UssdHttpMachineDeps extends UssdHttpBaseDeps {
 export interface UssdHttpHandlerDeps extends UssdHttpBaseDeps {
   machine?: undefined;
   /**
-   * The step handler the listener races against the watchdog instead of
-   * this adapter's {@link handleStep}. A caller with its own menu (a
-   * different screen catalogue or final step) supplies its own handler
-   * and keeps the transport, the idempotency cache, the watchdog and the
-   * callback path checks unchanged. No `machine` is needed in this shape.
+   * The extension point: a step handler the listener runs instead of this
+   * adapter's {@link handleStep}. A caller with its own menu (a different
+   * screen catalogue or final step) supplies it; no `machine` is needed.
+   *
+   * **What the listener keeps** for a custom handler: the required
+   * unguessable callback path, the optional IP allowlist, body parsing and
+   * rendering through the gateway adapter, the watchdog (the busy screen
+   * when the handler is still in flight; the handler's real reply still
+   * lands in the cache for the gateway's retry), the mapping of a rejected
+   * promise or a synchronous throw to the service screen, and the response
+   * cache: an identical callback within the store's response TTL is
+   * answered from the cache without calling the handler, and every cached
+   * response is evicted at that TTL whether or not the handler ever wrote
+   * a session record.
+   *
+   * **What a custom handler takes over** from {@link handleStep}, because
+   * the listener does none of it: session creation and TTL expiry
+   * (`sessions.get` / `sessions.put`), duplicate and replay detection by
+   * processed input count (the cache only catches byte identical repeats;
+   * a replayed earlier step or a forged variant reaches the handler), PIN
+   * masking before anything is persisted or logged, the single use signing
+   * claim (`sessions.claimSigning`) before any signature or anchor
+   * operation, and dropping the JWT on an END screen.
+   *
+   * **The handler receives unmasked input.** `step.inputs` and
+   * `step.rawText` are the user's keystrokes as the gateway delivered
+   * them, PIN digits included. This repository treats PIN masking as a
+   * security property: a custom handler must mask PIN positions itself
+   * before persisting or logging anything derived from the step, and must
+   * never write `rawText` anywhere. The listener's own cache key is a
+   * SHA-256 digest of `rawText`, never the text.
    */
   handle: UssdStepHandler;
 }
