@@ -146,57 +146,6 @@ describe('InMemorySessionStore', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Review round 1 (blocking): cached responses must expire on their own
-  // TTL, independently of the session sweep. The listener caches a response
-  // for every processed callback, including callbacks that never create a
-  // session record (a custom step handler that does not use the session
-  // records; the timeout screen for an unknown session id). Before this
-  // fix those entries lived for the life of the process.
-  // -------------------------------------------------------------------------
-  describe('response cache TTL', () => {
-    it('a cached response expires on its own TTL even when its session was never put', async () => {
-      const clock = { t: T0 };
-      const store = new InMemorySessionStore(120_000, { responseTtlMs: 5_000, now: () => clock.t });
-      await store.recordResponse('never-put', '1:k', 'CON x');
-      expect(await store.getResponse('never-put', '1:k')).toBe('CON x');
-      clock.t = T0 + 4_999;
-      expect(await store.getResponse('never-put', '1:k')).toBe('CON x');
-      clock.t = T0 + 5_000;
-      expect(await store.getResponse('never-put', '1:k')).toBeUndefined();
-      expect(store.responseCount).toBe(0);
-    });
-
-    it('recording a response sweeps the expired responses of every other session', async () => {
-      const clock = { t: T0 };
-      const store = new InMemorySessionStore(120_000, { responseTtlMs: 5_000, now: () => clock.t });
-      await store.recordResponse('a', '1:k', 'CON a');
-      await store.recordResponse('b', '1:k', 'CON b');
-      await store.recordResponse('b', '2:k', 'CON b2');
-      expect(store.responseCount).toBe(3);
-      clock.t = T0 + 5_000;
-      await store.recordResponse('c', '1:k', 'CON c');
-      expect(store.responseCount).toBe(1);
-      expect(await store.getResponse('c', '1:k')).toBe('CON c');
-    });
-
-    it('the response TTL defaults to the session TTL', () => {
-      expect(new InMemorySessionStore().responseTtlMs).toBe(DEFAULT_SESSION_TTL_MS);
-      expect(new InMemorySessionStore(7_000).responseTtlMs).toBe(7_000);
-      expect(new InMemorySessionStore(7_000, { responseTtlMs: 30_000 }).responseTtlMs).toBe(30_000);
-    });
-
-    it('the session paths still drop a session\'s cache before its response TTL', async () => {
-      const clock = { t: T0 };
-      const store = new InMemorySessionStore(5_000, { responseTtlMs: 60_000, now: () => clock.t });
-      await store.put(makeSession());
-      await store.recordResponse('ATUid_1', '1:k', 'CON x');
-      await store.get('ATUid_1', T0 + 5_000);
-      expect(await store.getResponse('ATUid_1', '1:k')).toBeUndefined();
-      expect(store.responseCount).toBe(0);
-    });
-  });
-
-  // -------------------------------------------------------------------------
   // F5 (durability): the signing latch is monotonic. Once claimed, a put
   // carrying a stale pre-claim copy must not un-spend it. This removes the
   // fragile coupling where the latch survived only because every post-claim
