@@ -19,7 +19,12 @@
  * each processed step is cached under a key derived from the step's
  * cumulative input, and an identical POST is answered from the cache
  * without re-running anything. The key is a SHA-256 digest, never the
- * raw text: PIN digits must not reach the store even as cache keys.
+ * raw text: PIN digits must not reach the store even as cache keys. Each
+ * cached response expires on the store's own response TTL (default: the
+ * session TTL), independently of whether a session record was ever
+ * written under that id, so the cache is bounded for every step handler
+ * and a session id the gateway reuses later is never answered with the
+ * earlier session's reply.
  *
  * ## Callback authentication (finding 2)
  *
