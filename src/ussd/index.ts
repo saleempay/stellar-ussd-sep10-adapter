@@ -16,6 +16,9 @@ export {
   createUssdRequestListener,
   DEFAULT_WATCHDOG_MS,
   type UssdHttpDeps,
+  type UssdHttpHandlerDeps,
+  type UssdHttpMachineDeps,
+  type UssdStepHandler,
 } from './gateway/http.js';
 export {
   parseCidrList,
@@ -31,7 +34,11 @@ export type {
   SessionStore,
   UssdSession,
 } from './session/types.js';
-export { DEFAULT_SESSION_TTL_MS, InMemorySessionStore } from './session/memoryStore.js';
+export {
+  DEFAULT_SESSION_TTL_MS,
+  InMemorySessionStore,
+  type InMemorySessionStoreOptions,
+} from './session/memoryStore.js';
 
 export type { FailureOutcome, PinRecord, PinStore } from './pin/types.js';
 export { InMemoryPinStore } from './pin/memoryStore.js';

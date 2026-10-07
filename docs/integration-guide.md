@@ -482,6 +482,52 @@ never committed. MSISDNs may arrive in national format; the layer converts
 to E.164 using the configured country code before anything touches the
 resolver (country inference is this layer's job, a settled ruling).
 
+### Supplying your own step handler
+
+`createUssdRequestListener` takes exactly one of two step handlers:
+`machine` (this adapter's menu, run through `handleStep`) or `handle`, a
+function from a parsed `GatewayStep` to a `Screen`. A caller with its own
+menu (a different screen catalogue, or a different final step such as a
+balance read instead of the SEP-10 and SEP-6 journey) supplies `handle`
+and needs no `MachineDeps`; the listener refuses to start with neither or
+both.
+
+```ts
+const listener = createUssdRequestListener({
+  gateway: new AfricasTalkingGateway(),
+  sessions: new InMemorySessionStore(),
+  callbackPath: process.env.USSD_CALLBACK_PATH!,
+  handle: async (step) => myMenu.render(step),
+});
+```
+
+What the listener keeps for a custom handler: the required unguessable
+callback path, the optional IP allowlist, body parsing and rendering
+through the gateway adapter, the watchdog busy screen (the handler's real
+reply still lands in the cache for the gateway's retry), the mapping of a
+rejected promise or a synchronous throw to the service screen, and the
+response cache. An identical callback within the store's response TTL
+(default: the session TTL) is answered from the cache without calling
+the handler, and every cached response is evicted at that TTL whether or
+not the handler ever wrote a session record, so the cache stays bounded
+and a session id the gateway reuses later is never answered with the
+earlier session's reply.
+
+What a custom handler takes over, because the listener does none of it:
+session creation and TTL expiry, duplicate and replay detection by
+processed input count (the cache only catches byte identical repeats; a
+replayed earlier step or a forged variant reaches the handler), PIN
+masking before anything is persisted or logged, the single use signing
+claim before any signature or anchor operation, and dropping the JWT on
+an END screen. The handler receives unmasked input: `step.inputs` and
+`step.rawText` carry the user's keystrokes as delivered, PIN digits
+included. Mask PIN positions before persisting or logging anything
+derived from a step, and never write `rawText` anywhere; the listener's
+own cache key is a SHA-256 digest of it, never the text. The unit tests
+in `test/unit/ussdHandleInjection.test.ts` exercise each kept guarantee
+through a custom handler and are the reference for what is and is not
+provided.
+
 ## Known limitations, documented for adopters, out of sprint scope
 
 These are deliberate simplifications of the reference implementation. A
