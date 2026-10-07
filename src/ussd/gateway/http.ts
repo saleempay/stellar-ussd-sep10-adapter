@@ -231,12 +231,18 @@ export function createUssdRequestListener(
 
     // Race the step handler against the watchdog. The work promise records
     // its own outcome into the cache even when the watchdog answers first.
-    const work = runStep(step).then((screen) => {
-      const rendered = deps.gateway.renderResponse(screen);
-      return deps.sessions
-        .recordResponse(step.sessionId, stepKey, JSON.stringify(rendered))
-        .then(() => rendered);
-    });
+    // The handler is invoked inside the promise chain so a synchronous
+    // throw (a non-async custom handler) takes the same path as a rejected
+    // promise: the service screen and a machineError event, never the last
+    // resort unhandledError path.
+    const work = Promise.resolve()
+      .then(() => runStep(step))
+      .then((screen) => {
+        const rendered = deps.gateway.renderResponse(screen);
+        return deps.sessions
+          .recordResponse(step.sessionId, stepKey, JSON.stringify(rendered))
+          .then(() => rendered);
+      });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const watchdog = new Promise<GatewayResponse>((resolve) => {

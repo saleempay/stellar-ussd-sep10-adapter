@@ -20,6 +20,7 @@ import {
   SCREENS,
   type GatewayStep,
   type MachineDeps,
+  type Screen,
   type UssdHttpDeps,
   type UssdStepHandler,
 } from '../../src/index.js';
@@ -152,6 +153,31 @@ describe('exactly one of machine or handle', () => {
     const deps = { ...base, machine: machineOver(base.sessions), handle } as unknown as UssdHttpDeps;
     expect(() => createUssdRequestListener(deps)).toThrow(ConfigError);
     expect(() => createUssdRequestListener(deps)).toThrow(/both machine .* and handle/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1: a non-async handler that throws synchronously must take
+// the same path as a rejected promise (service screen, machineError event),
+// not escape into the last resort unhandledError path.
+// ---------------------------------------------------------------------------
+describe('a synchronous throw from the handler', () => {
+  let server: Server | undefined;
+  afterEach(async () => {
+    if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+  });
+
+  it('is mapped to the service screen through the rejected promise path', async () => {
+    // Deliberately not async: the throw happens before any promise exists.
+    const handle = ((): Promise<Screen> => {
+      throw new Error('boom');
+    }) as UssdStepHandler;
+    const f = await start({ handle });
+    server = f.server;
+    expect(await f.post('1')).toBe(`END ${SCREENS.endServiceDown().text}`);
+    expect(f.logs.join('\n')).toContain('event=machineError');
+    expect(f.logs.join('\n')).not.toContain('event=unhandledError');
   });
 });
 
