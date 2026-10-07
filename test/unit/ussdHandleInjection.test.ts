@@ -182,6 +182,58 @@ describe('a synchronous throw from the handler', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Review round 1: the transport guarantees the listener claims for a custom
+// handler, each exercised through a custom handler rather than through this
+// adapter's machine: the idempotency cache, the watchdog, error mapping.
+// ---------------------------------------------------------------------------
+describe('transport guarantees through a custom handler', () => {
+  let server: Server | undefined;
+  afterEach(async () => {
+    if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+  });
+
+  it('an identical callback twice calls the handler once (cache hit)', async () => {
+    const { handle, calls } = countingHandler();
+    const f = await start({ handle });
+    server = f.server;
+    expect(await f.post('1')).toBe('END reply 1');
+    expect(await f.post('1')).toBe('END reply 1');
+    expect(calls()).toBe(1);
+    expect(f.logs.join('\n')).toContain('event=cacheHit');
+  });
+
+  it('a slow handler gets the busy screen when the watchdog fires, and its real reply lands in the cache', async () => {
+    let calls = 0;
+    const handle: UssdStepHandler = async () => {
+      calls += 1;
+      await new Promise((r) => setTimeout(r, 300));
+      return { kind: 'end', text: 'slow reply', hop: 'custom' };
+    };
+    const f = await start({ handle, watchdogMs: 100 });
+    server = f.server;
+    expect(await f.post('1')).toBe(`END ${SCREENS.endBusy().text}`);
+    expect(f.logs.join('\n')).toContain('event=watchdog ms=100');
+
+    // The in-flight work finishes and records its real response; a gateway
+    // retry of the same callback gets it without running the handler again.
+    await new Promise((r) => setTimeout(r, 400));
+    expect(await f.post('1')).toBe('END slow reply');
+    expect(calls).toBe(1);
+  });
+
+  it('a rejected handler promise is mapped to the service screen', async () => {
+    const handle: UssdStepHandler = async () => {
+      throw new Error('upstream down');
+    };
+    const f = await start({ handle });
+    server = f.server;
+    expect(await f.post('1')).toBe(`END ${SCREENS.endServiceDown().text}`);
+    expect(f.logs.join('\n')).toContain('event=machineError');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Review round 1, blocking: response cache eviction. The listener caches a
 // response for every processed callback under the step's session id. Before
 // the fix, the in-memory store evicted a session's cache only when the
