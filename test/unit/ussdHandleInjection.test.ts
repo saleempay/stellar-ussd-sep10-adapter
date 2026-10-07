@@ -13,22 +13,23 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   AfricasTalkingGateway,
+  ConfigError,
   createUssdRequestListener,
   InMemoryPinStore,
   InMemorySessionStore,
   SCREENS,
   type GatewayStep,
   type MachineDeps,
-  type Screen,
+  type UssdHttpDeps,
+  type UssdStepHandler,
 } from '../../src/index.js';
 
 const CALLBACK_PATH = '/ussd/cb-3f9a7c21e0b84d56';
 const T0 = 1_000_000;
 
-type StepHandler = (step: GatewayStep) => Promise<Screen>;
-
 interface FixtureOptions {
-  handle?: StepHandler;
+  /** When given, the listener gets `handle` and no `machine` at all. */
+  handle?: UssdStepHandler;
   sessions?: InMemorySessionStore;
   watchdogMs?: number;
 }
@@ -51,15 +52,19 @@ function machineOver(sessions: InMemorySessionStore): MachineDeps {
 async function start(options: FixtureOptions = {}) {
   const sessions = options.sessions ?? new InMemorySessionStore();
   const logs: string[] = [];
-  const listener = createUssdRequestListener({
+  const base = {
     gateway: new AfricasTalkingGateway(),
-    machine: machineOver(sessions),
     sessions,
     callbackPath: CALLBACK_PATH,
-    handle: options.handle,
     watchdogMs: options.watchdogMs,
-    log: (line) => logs.push(line),
-  });
+    log: (line: string) => logs.push(line),
+  };
+  // Exactly one step handler: a custom handler needs no MachineDeps.
+  const listener = createUssdRequestListener(
+    options.handle === undefined
+      ? { ...base, machine: machineOver(sessions) }
+      : { ...base, handle: options.handle },
+  );
   const server = createServer(listener);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
@@ -77,7 +82,7 @@ async function start(options: FixtureOptions = {}) {
 /** A handler that answers from its own state and never touches the session store. */
 function countingHandler() {
   let calls = 0;
-  const handle: StepHandler = async () => {
+  const handle: UssdStepHandler = async () => {
     calls += 1;
     return { kind: 'end', text: `reply ${calls}`, hop: 'custom' };
   };
@@ -109,6 +114,44 @@ describe('UssdHttpDeps.handle', () => {
     expect(await f.post('1*2')).toBe('END custom for 2 inputs');
     expect(seen[0]?.sessionId).toBe('s1');
     expect(seen[0]?.inputs).toEqual(['1', '2']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1: `machine` is no longer required when `handle` is supplied.
+// UssdHttpDeps is a union of the two shapes and the listener refuses to
+// start with neither or both, at construction rather than on the first
+// callback.
+// ---------------------------------------------------------------------------
+describe('exactly one of machine or handle', () => {
+  const base = {
+    gateway: new AfricasTalkingGateway(),
+    sessions: new InMemorySessionStore(),
+    callbackPath: CALLBACK_PATH,
+  };
+
+  it('machine only: this adapter\'s menu', () => {
+    const listener = createUssdRequestListener({ ...base, machine: machineOver(base.sessions) });
+    expect(typeof listener).toBe('function');
+  });
+
+  it('handle only: no MachineDeps needed', () => {
+    const handle: UssdStepHandler = async () => ({ kind: 'end', text: 'x' });
+    const listener = createUssdRequestListener({ ...base, handle });
+    expect(typeof listener).toBe('function');
+  });
+
+  it('neither: a ConfigError at startup naming both options', () => {
+    const deps = { ...base } as unknown as UssdHttpDeps;
+    expect(() => createUssdRequestListener(deps)).toThrow(ConfigError);
+    expect(() => createUssdRequestListener(deps)).toThrow(/machine .* or handle .*neither/);
+  });
+
+  it('both: a ConfigError at startup rather than silently preferring one', () => {
+    const handle: UssdStepHandler = async () => ({ kind: 'end', text: 'x' });
+    const deps = { ...base, machine: machineOver(base.sessions), handle } as unknown as UssdHttpDeps;
+    expect(() => createUssdRequestListener(deps)).toThrow(ConfigError);
+    expect(() => createUssdRequestListener(deps)).toThrow(/both machine .* and handle/);
   });
 });
 

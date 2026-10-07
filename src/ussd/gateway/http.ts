@@ -72,10 +72,12 @@ const MAX_BODY_BYTES = 16 * 1024;
  */
 const MIN_CALLBACK_PATH_LENGTH = 12;
 
-/** Dependencies for {@link createUssdRequestListener}. */
-export interface UssdHttpDeps {
+/** A step handler: one parsed gateway callback in, one screen out. */
+export type UssdStepHandler = (step: GatewayStep) => Promise<Screen>;
+
+/** Dependencies every listener takes, whichever step handler it runs. */
+interface UssdHttpBaseDeps {
   gateway: GatewayAdapter;
-  machine: MachineDeps;
   sessions: SessionStore;
   /**
    * Callback route, exact match, e.g. `/ussd/<long-random-segment>`.
@@ -95,15 +97,34 @@ export interface UssdHttpDeps {
   watchdogMs?: number;
   /** Structured event sink. Never receives user input, never the path. */
   log?: (line: string) => void;
-  /**
-   * The step handler the listener races against the watchdog. Default:
-   * this adapter's {@link handleStep} over `machine`. A caller with its own
-   * menu (a different screen catalogue or final step) supplies its own
-   * handler and keeps the transport, the idempotency cache, the watchdog
-   * and the callback path checks unchanged.
-   */
-  handle?: (step: GatewayStep) => Promise<Screen>;
 }
+
+/** The default shape: the listener runs this adapter's menu. */
+export interface UssdHttpMachineDeps extends UssdHttpBaseDeps {
+  /** This adapter's menu: the listener runs {@link handleStep} over it. */
+  machine: MachineDeps;
+  handle?: undefined;
+}
+
+/** The extension shape: the listener runs the caller's step handler. */
+export interface UssdHttpHandlerDeps extends UssdHttpBaseDeps {
+  machine?: undefined;
+  /**
+   * The step handler the listener races against the watchdog instead of
+   * this adapter's {@link handleStep}. A caller with its own menu (a
+   * different screen catalogue or final step) supplies its own handler
+   * and keeps the transport, the idempotency cache, the watchdog and the
+   * callback path checks unchanged. No `machine` is needed in this shape.
+   */
+  handle: UssdStepHandler;
+}
+
+/**
+ * Dependencies for {@link createUssdRequestListener}: exactly one of
+ * `machine` (this adapter's menu) or `handle` (a caller's step handler).
+ * The listener refuses to start with neither or both.
+ */
+export type UssdHttpDeps = UssdHttpMachineDeps | UssdHttpHandlerDeps;
 
 /**
  * Build a `node:http` request listener for gateway callbacks.
@@ -133,6 +154,12 @@ export function createUssdRequestListener(
         `${MIN_CALLBACK_PATH_LENGTH} characters). Use a long random segment.`,
     );
   }
+
+  // Exactly one step handler: this adapter's menu over `machine`, or the
+  // caller's `handle`. Neither would fail on the first callback; both is a
+  // configuration mistake worth refusing at startup rather than silently
+  // ignoring one of them.
+  const runStep = resolveStepHandler(deps);
 
   const allowedCidrs = deps.allowedCidrs ?? [];
   const watchdogMs = deps.watchdogMs ?? DEFAULT_WATCHDOG_MS;
@@ -202,10 +229,9 @@ export function createUssdRequestListener(
       return;
     }
 
-    // Race the machine against the watchdog. The machine promise records
+    // Race the step handler against the watchdog. The work promise records
     // its own outcome into the cache even when the watchdog answers first.
-    const handle = deps.handle ?? ((s: GatewayStep) => handleStep(deps.machine, s));
-    const work = handle(step).then((screen) => {
+    const work = runStep(step).then((screen) => {
       const rendered = deps.gateway.renderResponse(screen);
       return deps.sessions
         .recordResponse(step.sessionId, stepKey, JSON.stringify(rendered))
@@ -237,6 +263,23 @@ export function createUssdRequestListener(
       work.catch(() => undefined);
     }
   }
+}
+
+/** The one step handler the listener runs; refuses neither and both. */
+function resolveStepHandler(deps: UssdHttpDeps): UssdStepHandler {
+  const { machine, handle } = deps;
+  if (machine !== undefined && handle !== undefined) {
+    throw new ConfigError(
+      'USSD listener takes exactly one step handler: both machine (this ' +
+        "adapter's menu) and handle (a custom step handler) were supplied.",
+    );
+  }
+  if (handle !== undefined) return handle;
+  if (machine !== undefined) return (step) => handleStep(machine, step);
+  throw new ConfigError(
+    'USSD listener takes exactly one step handler: supply machine (this ' +
+      "adapter's menu) or handle (a custom step handler); neither was supplied.",
+  );
 }
 
 function writeResponse(res: ServerResponse, response: GatewayResponse): void {

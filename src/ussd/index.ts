@@ -16,6 +16,9 @@ export {
   createUssdRequestListener,
   DEFAULT_WATCHDOG_MS,
   type UssdHttpDeps,
+  type UssdHttpHandlerDeps,
+  type UssdHttpMachineDeps,
+  type UssdStepHandler,
 } from './gateway/http.js';
 export {
   parseCidrList,
